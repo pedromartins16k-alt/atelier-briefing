@@ -24,6 +24,10 @@ export const pageOptions: Choice[] = [
   {id:'one',title:'1 página',desc:'Mensagem direta e objetiva'}, {id:'small',title:'2–5 páginas',desc:'Uma presença essencial'}, {id:'medium',title:'6–10 páginas',desc:'Estrutura completa'}, {id:'large',title:'11–20 páginas',desc:'Ecossistema de conteúdo'}, {id:'unknown',title:'Ainda não sei',desc:'Nós recomendamos uma estrutura'}
 ];
 export const designs: Choice[] = ['Minimalista','Premium','Corporativo','Moderno','Futurista','Editorial','Criativo','Tecnológico'].map((id,i)=>({id,title:id,desc:['Clareza e respiro','Detalhes com presença','Confiança e estrutura','Leve e atual','Ousado e inovador','Narrativo e refinado','Expressivo e original','Preciso e digital'][i]}));
+export const templates: Choice[] = [
+ {id:'editorial',title:'Editorial',desc:'Narrativa, respiro e autoridade',tag:'Recomendado'}, {id:'minimal',title:'Minimal',desc:'Clareza absoluta e foco'}, {id:'corporate',title:'Corporate',desc:'Estrutura e confiança'}, {id:'creative',title:'Creative',desc:'Ritmo visual expressivo'}, {id:'luxury',title:'Luxury',desc:'Presença refinada'}, {id:'tech',title:'Tech',desc:'Precisão digital'}
+];
+export const projectPages = ['Home','Sobre','Serviços','Produtos','Portfólio','Cases','Blog','Contato','FAQ','Depoimentos','Equipe','Área do cliente'];
 export const features: Choice[] = [
   {id:'form',title:'Formulário inteligente',desc:'Captação de contatos',price:0},{id:'whatsapp',title:'WhatsApp',desc:'Conversas instantâneas',price:350},{id:'blog',title:'Blog',desc:'Conteúdo estratégico',price:1400},{id:'booking',title:'Agendamento',desc:'Agenda integrada',price:1800},{id:'payment',title:'Pagamento online',desc:'Checkout seguro',price:2200},{id:'login',title:'Área do cliente',desc:'Acesso personalizado',price:3200},{id:'search',title:'Busca e filtros',desc:'Navegação avançada',price:1100},{id:'multilang',title:'Multi-idioma',desc:'Alcance global',price:1800},{id:'gallery',title:'Galeria & portfólio',desc:'Conteúdo visual',price:700},{id:'crm',title:'Integração CRM',desc:'Leads organizados',price:1500}
 ];

@@ -5,5 +5,6 @@ export type Brief = {
   goals: string[]; websiteType: string; pages: string; pageList: string[];
   design: string; theme: string; features: string[]; seo: string; performance: string;
   integrations: string[]; content: string; hosting: string; deadline: string; plan: string;
+  template: string; references: string; identity: string; typography: string;
 };
 export type Step = { id: string; label: string; title: string; description: string };
