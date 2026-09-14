@@ -1,40 +1,19 @@
+import { ArrowRight, Check, CircleAlert, CircleCheck, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CircleCheck, Compass, Sparkles } from 'lucide-react';
-
 type HomeProps = { onStart: () => void };
-
-const process = [
-  ['01', 'Você nos conta sobre sua marca', 'Conte sua história, posicionamento, público e objetivos. Quanto melhor entendermos sua marca, melhor será o projeto.'],
-  ['02', 'Definimos a experiência ideal', 'Transformamos seus objetivos em estrutura, funcionalidades e uma experiência digital clara e estratégica.'],
-  ['03', 'Componha seu investimento', 'Suas escolhas são transformadas em uma estimativa transparente de investimento, atualizada em tempo real.'],
-  ['04', 'Receba uma proposta estratégica', 'Ao final, você recebe um resumo completo do projeto e os próximos passos para tirar a ideia do papel.']
-];
-
+const process = [['01','Conte','Conte sobre sua marca, objetivos e o projeto que quer construir.'],['02','O Atelier organiza','Transformamos respostas em uma direção estratégica legível.'],['03','Você revisa','Nada é enviado sem a sua confirmação e seu contexto.'],['04','Fica pronto','Um briefing claro para orientar o próximo passo do projeto.']];
+const topics = ['Objetivo','Público','Posicionamento','Estrutura','Conteúdo','Funcionalidades','Referências','Prazo','Orçamento'];
 export default function Home({ onStart }: HomeProps) {
-  const processRef = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const element = processRef.current;
-    if (!element) return;
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.18 });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const parallax = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth < 801) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty('--px', `${((event.clientX - box.left) / box.width - .5) * 10}px`);
-    event.currentTarget.style.setProperty('--py', `${((event.clientY - box.top) / box.height - .5) * 10}px`);
-  };
-
-  return <main className="home">
-    <nav className="home-nav"><button className="brand home-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span>✦</span> atelier<span>.</span></button><button className="ghost home-link" onClick={onStart}>Acessar briefing <ArrowRight size={16}/></button></nav>
-    <section className="hero">
-      <div className="hero-copy"><div className="pill"><Sparkles size={14}/> BRIEFING INTELIGENTE</div><h1>Seu próximo site <i>começa aqui.</i></h1><p>Uma experiência guiada para transformar a ambição da sua marca em um projeto digital claro, estratégico e pronto para acontecer.</p><button className="primary big" onClick={onStart}>Começar meu projeto <ArrowRight className="button-arrow" size={18}/></button><div className="hero-meta"><span><CircleCheck size={17}/> 10–15 min</span><span><CircleCheck size={17}/> orçamento em tempo real</span></div><a className="scroll-cue" href="#processo">SCROLL PARA EXPLORAR <span>↓</span></a></div>
-      <div className="orbital" onPointerMove={parallax} onPointerLeave={event => { event.currentTarget.style.setProperty('--px', '0px'); event.currentTarget.style.setProperty('--py', '0px'); }}><div className="orbit-line orbit-three"/><div className="solar-track track-briefing"><div className="orbit-label top">BRIEFING <b>01</b></div></div><div className="solar-track track-strategy"><div className="orbit-label right">ESTRATÉGIA <b>02</b></div></div><div className="solar-track track-design"><div className="orbit-label bottom">DESIGN <b>03</b></div></div><div className="orb-core"><Compass size={42}/><span>do insight<br/>ao impacto</span></div><div className="solar-track track-dot-one"><div className="orbit-dot d1"/></div><div className="solar-track track-dot-two"><div className="orbit-dot d2"/></div><div className="solar-track track-dot-three"><div className="orbit-dot d3"/></div></div>
-    </section>
-    <section id="processo" ref={processRef} className={'how '+(visible ? 'is-visible' : '')}><span className="eyebrow">O PROCESSO ATELIER</span><h2>Clareza em cada decisão.<br/><i>Excelência em cada detalhe.</i></h2><div className="how-grid">{process.map(([number,title,description], index)=><article className="process-card" style={{ '--delay': `${index * 90}ms` } as React.CSSProperties} key={number}><span>{number}</span><b>{title}</b><p>{description}</p></article>)}</div></section>
-  </main>;
+ const [visible,setVisible]=useState(false); const processRef=useRef<HTMLElement>(null);
+ useEffect(()=>{const el=processRef.current;if(!el)return;const observer=new IntersectionObserver(([entry])=>setVisible(entry.isIntersecting),{threshold:.15});observer.observe(el);return()=>observer.disconnect()},[]);
+ return <main className="home premium-home">
+ <nav className="home-nav"><button className="brand home-brand" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}><span>✦</span> atelier<span>.</span></button><button className="ghost home-link" onClick={onStart}>Acessar briefing <ArrowRight size={16}/></button></nav>
+ <section className="hero product-hero"><div className="hero-copy"><div className="pill"><Sparkles size={13}/> BRIEFING INTELIGENTE</div><h1>Seu próximo site começa com <i>clareza.</i></h1><p>Em 10–15 minutos, conte sobre sua marca, objetivos e referências. O Atelier transforma suas respostas em um briefing estratégico, uma direção clara para o projeto e uma estimativa em tempo real.</p><button className="primary big" onClick={onStart}>Começar meu projeto <ArrowRight className="button-arrow" size={18}/></button><div className="hero-meta"><span><CircleCheck size={16}/> 10–15 min</span><span><CircleCheck size={16}/> orçamento em tempo real</span><span><CircleCheck size={16}/> revisão antes do envio</span></div><a className="scroll-cue" href="#processo">SCROLL PARA EXPLORAR <span>↓</span></a></div><div className="product-orbit"><i className="product-ring ring-a"/><i className="product-ring ring-b"/><i className="product-ring ring-c"/><article className="live-brief"><header><span>BRIEFING</span><b>EM CONSTRUÇÃO</b></header><h3>Novo site institucional</h3><dl><div><dt>OBJETIVO</dt><dd>Aumentar pedidos de orçamento</dd></div><div><dt>PÚBLICO</dt><dd>Empresas de médio porte</dd></div><div><dt>POSIÇÃO</dt><dd>Premium, acessível e especialista</dd></div><div><dt>PRIORIDADE</dt><dd>Gerar leads qualificados</dd></div></dl><footer><CircleAlert size={13}/> 1 ponto precisa de definição</footer></article></div></section>
+ <section id="processo" ref={processRef} className={'how product-process '+(visible?'is-visible':'')}><span className="eyebrow">COMO FUNCIONA</span><h2>Clareza em cada decisão.<br/><i>Direção em cada detalhe.</i></h2><div className="how-grid">{process.map(([number,title,description],index)=><article className="process-card" style={{'--delay':`${index*90}ms`} as React.CSSProperties} key={number}><span>{number}</span><b>{title}</b><p>{description}</p></article>)}</div></section>
+ <section className="understanding"><div className="understanding-inner"><div><span className="eyebrow">O QUE O ATELIER ENTENDE</span><h2>O Atelier transforma respostas em <i>direção.</i></h2><p>Mais do que coletar informações, o Atelier organiza o que realmente importa para o projeto.</p></div><div className="topic-grid">{topics.map(topic=><div key={topic}><small>↗</small>{topic}</div>)}</div></div></section>
+ <section className="intelligence"><div className="intelligence-inner"><div className="section-heading"><span className="eyebrow">SINAL DO ATELIER</span><h2>O que normalmente passa <i>despercebido.</i></h2><p>Fato, interpretação, inferência e conflito aparecem separados — para que você possa tomar decisões mais conscientes.</p></div><div className="insight-grid-product"><article><em>CONFLITO</em><small>CLIENTE QUER</small><q>“Uma marca premium”</q><small>TAMBÉM QUER</small><q>“Alcançar o maior público possível”</q><footer><b>ATELIER</b>⚠ Existe uma tensão entre exclusividade e alcance.</footer></article><article><em>QUESTÃO EM ABERTO</em><small>OBJETIVO</small><q>Gerar mais leads</q><footer><b>ATELIER</b>⚠ O critério de sucesso ainda não foi definido.</footer></article><article><em>INFERÊNCIA</em><small>CLIENTE DISSE</small><q>“Sofisticados, mas próximos.”</q><footer><b>ATELIER</b>→ Tom sugerido: premium sem distanciamento.</footer></article></div></div></section>
+ <section className="result-product"><div className="result-inner"><div className="result-copy"><span className="eyebrow">O RESULTADO</span><h2>Você não recebe respostas. Recebe <i>direção.</i></h2><p>Uma leitura organizada do projeto, com o que está definido, o que pede atenção e os próximos passos.</p><div className="readiness"><strong>92%</strong><span>BRIEFING READINESS</span><i><b/></i>{['objetivo definido','público definido','posicionamento definido','referências adicionadas'].map(x=><p key={x}><Check size={13}/>{x}</p>)}<p className="warning">⚠ conteúdo ainda pendente</p></div></div><article className="brief-result"><header><span>ATELIER / BRIEFING ESTRATÉGICO</span><b>PROJETO 001</b></header><div>{[['VISÃO DO PROJETO','Uma presença institucional que traduz expertise em confiança.'],['OBJETIVO','Gerar conversas qualificadas com decisores B2B.'],['PÚBLICO','Diretores de empresas de médio porte.'],['POSICIONAMENTO','Premium, acessível e especialista.'],['DIREÇÃO','Clareza editorial com tecnologia a serviço do negócio.'],['FUNCIONALIDADES','Captação, CRM e páginas de serviço.'],['PONTOS DE ATENÇÃO','Definir critério de sucesso para leads.'],['QUESTÕES EM ABERTO','Conteúdo para páginas-chave.']].map(([title,text])=><section key={title}><small>{title}</small><p>{text}</p></section>)}</div></article></div></section>
+ <section className="trust-slot"><h3>Espaço pronto para a confiança que o seu trabalho já construiu.</h3><p>Quando houver dados reais — projetos, resultados, depoimentos ou marcas parceiras — esta área pode recebê-los sem inventar números.</p></section>
+ <section className="home-final"><span className="eyebrow">COMECE COM INTENÇÃO</span><h2>Seu próximo site começa com um briefing melhor.</h2><p>Conte o que você está construindo. O Atelier organiza o caminho para fazer acontecer.</p><button className="primary big" onClick={onStart}>Começar meu projeto <ArrowRight size={18}/></button></section>
+ </main>;
 }
