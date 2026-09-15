@@ -89,7 +89,60 @@ export type Screen =
   | 'admin-clients'
   | 'admin-client'
   | 'admin-projects'
-  | 'admin-project';
+  | 'admin-project'
+  | 'admin-config';
+
+// ============================================================
+// Tipos do Sistema de Configuração do Formulário
+// ============================================================
+
+export type PreviewImpact = {
+  theme?: string;          // ex: 'dark', 'minimal', 'warm'
+  layoutVariant?: string;  // ex: 'grid', 'editorial', 'centered'
+  typographyClass?: string; // ex: 'font-serif', 'font-mono'
+  accentKey?: string;      // chave da paleta afetada
+};
+
+export type FormOptionConfig = {
+  id: string;
+  label: string;
+  category?: string;
+  price?: number;           // valor em BRL (0 = incluso)
+  priceLabel?: string;      // ex: "+ R$ 850/módulo"
+  preview?: PreviewImpact;  // efeito no preview
+  enabled: boolean;
+};
+
+export type ColorPaletteColors = {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  surface: string;
+  text: string;
+};
+
+export type ColorPalette = {
+  id: string;
+  name: string;
+  emoji?: string;
+  colors: ColorPaletteColors;
+  enabled: boolean;
+};
+
+export type FormConfig = {
+  palettes: ColorPalette[];
+  featureOptions: FormOptionConfig[];
+  pageOptions: FormOptionConfig[];
+  goalOptions: FormOptionConfig[];
+  basePrices: {
+    base: number;         // projeto base
+    extraPagePrice: number;
+    copywritingPrice: number;
+    integrationPriceEach: number;
+  };
+  updatedAt?: string;
+};
 
 // ============================================================
 // Tipos do Briefing
@@ -200,8 +253,18 @@ export type BriefingData = {
   targetLaunchDate: string;
   investmentRange: string;
 
+
   // 13. Observações Finais
   finalObservations: string;
+
+  // 14. Configuração Visual (Preview em tempo real)
+  selectedPaletteId?: string;
+  customPalette?: ColorPaletteColors;
+  visualStyle?: 'minimal' | 'modern' | 'elegant' | 'bold' | 'playful';
+  layoutStyle?: 'centered' | 'editorial' | 'grid' | 'magazine';
+  typographyStyle?: 'serif' | 'sans' | 'mono' | 'display';
+  borderRadiusStyle?: 'sharp' | 'soft' | 'rounded';
+  visualDensity?: 'compact' | 'balanced' | 'spacious';
 };
 
 export type StepDefinition = {

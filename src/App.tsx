@@ -14,6 +14,7 @@ import ClientsList from './components/admin/ClientsList';
 import ClientProfile from './components/admin/ClientProfile';
 import ProjectsList from './components/admin/ProjectsList';
 import ProjectDetail from './components/admin/ProjectDetail';
+import FormConfigurator from './components/admin/FormConfigurator';
 import { getClientBriefing } from './services/briefingService';
 import { INITIAL_BRIEFING } from './data/briefingConfig';
 
@@ -31,6 +32,7 @@ function screenToPath(screen: Screen, clientId?: string, projectId?: string): st
     case 'admin-client': return clientId ? `/admin/clientes/${clientId}` : '/admin/clientes';
     case 'admin-projects': return '/admin/projetos';
     case 'admin-project': return projectId ? `/admin/projetos/${projectId}` : '/admin/projetos';
+    case 'admin-config': return '/admin/configurador';
     default: return '/';
   }
 }
@@ -49,6 +51,7 @@ function pathToScreen(path: string): { screen: Screen; id?: string } {
   if (clean.startsWith('/admin/clientes/')) return { screen: 'admin-client', id: clean.split('/')[3] };
   if (clean === '/admin/projetos') return { screen: 'admin-projects' };
   if (clean.startsWith('/admin/projetos/')) return { screen: 'admin-project', id: clean.split('/')[3] };
+  if (clean === '/admin/configurador') return { screen: 'admin-config' };
   return { screen: 'home' };
 }
 
@@ -233,6 +236,9 @@ function MainApp() {
             projectId={selectedProjectId}
             onNavigate={navigate}
           />
+        )}
+        {screen === 'admin-config' && (
+          <FormConfigurator />
         )}
       </AdminLayout>
     );

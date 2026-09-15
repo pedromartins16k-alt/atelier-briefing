@@ -17,6 +17,7 @@ import {
   saveDraftLocally, loadDraftLocally, clearDraftLocally,
   ensureProject, saveBriefingDraft, submitBriefingToSupabase
 } from '../services/briefingService';
+import IdentityStep from './IdentityStep';
 
 interface BriefingFlowProps {
   onNavigate: (screen: Screen) => void;
@@ -434,51 +435,12 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
 
       case 'identity':
         return (
-          <div className="step-body">
-            <div className="eyebrow">06 / ATMOSFERA VISUAL</div>
-            <h1>{currentStep.title}</h1>
-            <p>Como você gostaria que sua marca fosse percebida visualmente?</p>
-
-            <div className="perceptions-grid">
-              {BRAND_PERCEPTIONS.map(item => {
-                const selected = data.brandPerceptions.includes(item.id);
-                return (
-                  <button type="button" key={item.id} className={'perception-card ' + (selected ? 'is-selected' : '')} onClick={() => toggleArrayItem('brandPerceptions', item.id)}>
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{item.id}</strong>
-                    <small>{item.desc}</small>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="field-grid two" style={{ marginTop: '28px' }}>
-              <label className="field-label">
-                <span>Existe alguma cor que representa sua marca?</span>
-                <input type="text" placeholder="Ex: Tons de oliva, dourado e off-white..." value={data.brandColors} onChange={e => update({ brandColors: e.target.value })} />
-              </label>
-              <label className="field-label">
-                <span>Existe alguma cor que você NÃO quer utilizar?</span>
-                <input type="text" placeholder="Ex: Vermelho, amarelo berrante, tons fluorescentes..." value={data.colorsToAvoid} onChange={e => update({ colorsToAvoid: e.target.value })} />
-              </label>
-            </div>
-
-            <div className="identity-status-box">
-              <span>Você já possui identidade visual definida?</span>
-              <div className="radio-pills">
-                {[
-                  { id: 'complete', label: 'Sim, completa (manual + vetor)' },
-                  { id: 'logo_only', label: 'Tenho apenas o logotipo' },
-                  { id: 'some_materials', label: 'Tenho alguns materiais pontuais' },
-                  { id: 'none', label: 'Ainda não possuo identidade visual' }
-                ].map(opt => (
-                  <button type="button" key={opt.id} className={'pill-radio ' + (data.identityStatus === opt.id ? 'is-active' : '')} onClick={() => update({ identityStatus: opt.id as any })}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <IdentityStep
+            data={data}
+            update={update}
+            toggleArrayItem={toggleArrayItem}
+            stepTitle={currentStep.title}
+          />
         );
 
       case 'references':

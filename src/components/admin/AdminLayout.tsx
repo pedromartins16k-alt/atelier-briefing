@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, FolderOpen, FileText, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, FolderOpen, Sliders, LogOut } from 'lucide-react';
 import type { Screen } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../services/authService';
@@ -13,7 +13,8 @@ interface AdminLayoutProps {
 const NAV_ITEMS: { id: Screen; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
   { id: 'admin-dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'admin-clients', label: 'Clientes', icon: Users },
-  { id: 'admin-projects', label: 'Projetos', icon: FolderOpen }
+  { id: 'admin-projects', label: 'Projetos', icon: FolderOpen },
+  { id: 'admin-config', label: 'Configurador', icon: Sliders }
 ];
 
 export default function AdminLayout({ children, screen, onNavigate }: AdminLayoutProps) {
@@ -55,15 +56,6 @@ export default function AdminLayout({ children, screen, onNavigate }: AdminLayou
         </nav>
 
         <div className="admin-sidebar-footer">
-          <button
-            type="button"
-            className="admin-nav-item admin-nav-settings"
-            onClick={() => {}}
-          >
-            <Settings size={18} />
-            <span>Configurações</span>
-          </button>
-
           <div className="admin-user-info">
             <div className="admin-user-avatar">
               {profile?.name?.charAt(0).toUpperCase() || 'A'}
