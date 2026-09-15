@@ -1,6 +1,8 @@
 import type { UserProfile, UserRole } from '../types';
 import { getSupabase } from './supabase';
 
+const ADMIN_EMAIL = 'pedro.claude001@gmail.com';
+
 export async function signIn(email: string, password: string) {
   const sb = getSupabase();
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
@@ -34,13 +36,21 @@ export async function resetPassword(email: string) {
 }
 
 /**
- * Busca o perfil do usuário de forma ultra-resiliente.
- * Se a linha ainda não existir em user_profiles ou a tabela estiver em migração,
- * cria/sintetiza o perfil para NUNCA travar a navegação do usuário.
+ * Busca o perfil do usuário logado.
+ * REGRA ESTRITA: Apenas pedro.claude001@gmail.com é admin. Todos os demais são clients.
  */
 export async function getProfile(userId: string): Promise<UserProfile> {
   const sb = getSupabase();
 
+  // 1. Tenta buscar via RPC segura no Supabase
+  try {
+    const { data: rpcProfile, error: rpcError } = await sb.rpc('get_my_profile');
+    if (rpcProfile && !rpcError) {
+      return rpcProfile as UserProfile;
+    }
+  } catch {}
+
+  // 2. Tenta consultar a tabela user_profiles
   try {
     const { data, error } = await sb
       .from('user_profiles')
@@ -55,30 +65,19 @@ export async function getProfile(userId: string): Promise<UserProfile> {
     console.warn('Erro ao consultar user_profiles:', err);
   }
 
-  // Se não encontrou ou deu erro, vamos determinar o papel do usuário
-  let role: UserRole = 'client';
-  try {
-    const { count } = await sb
-      .from('user_profiles')
-      .select('id', { count: 'exact', head: true });
-    
-    // Se não há nenhum perfil no sistema, este é o primeiro usuário -> admin
-    if (count === 0 || count === null) {
-      role = 'admin';
-    }
-  } catch {
-    // Se a tabela ainda não foi criada, assume admin para o primeiro acesso
-    role = 'admin';
-  }
-
-  // Tenta obter os metadados do auth
+  // 3. Fallback seguro: identifica o e-mail do usuário autenticado
   let name = 'Usuário';
+  let email = '';
   try {
     const { data: authData } = await sb.auth.getUser();
     name = authData?.user?.user_metadata?.name || authData?.user?.email?.split('@')[0] || 'Usuário';
+    email = (authData?.user?.email || '').toLowerCase().trim();
   } catch {}
 
-  const fallbackProfile: UserProfile = {
+  // REGRA ESTRITA: Apenas pedro.claude001@gmail.com é admin
+  const role: UserRole = email === ADMIN_EMAIL ? 'admin' : 'client';
+
+  const profile: UserProfile = {
     id: userId,
     name,
     role,
@@ -86,20 +85,12 @@ export async function getProfile(userId: string): Promise<UserProfile> {
     updated_at: new Date().toISOString()
   };
 
-  // Tenta salvar o perfil no banco para próximas requisições
+  // Tenta persistir no banco para sincronização
   try {
-    const { data: created } = await sb
-      .from('user_profiles')
-      .upsert(fallbackProfile)
-      .select()
-      .maybeSingle();
+    await sb.from('user_profiles').upsert(profile);
+  } catch {}
 
-    if (created) return created as UserProfile;
-  } catch (err) {
-    console.warn('Não foi possível gravar fallback em user_profiles:', err);
-  }
-
-  return fallbackProfile;
+  return profile;
 }
 
 export async function updateProfile(userId: string, patch: Partial<Omit<UserProfile, 'id' | 'role' | 'created_at' | 'updated_at'>>) {

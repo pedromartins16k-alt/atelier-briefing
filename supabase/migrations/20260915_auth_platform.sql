@@ -191,7 +191,7 @@ CREATE POLICY "history_insert_admin" ON public.project_history
 
 -- ============================================================
 -- TRIGGER: Criar perfil ao registrar usuário
--- Primeiro usuário = admin; demais = client
+-- Regra estrita: pedro.claude001@gmail.com = admin; todos os outros = client
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -199,11 +199,8 @@ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public AS $$
 DECLARE
   v_role text;
-  v_count int;
 BEGIN
-  SELECT COUNT(*) INTO v_count FROM public.user_profiles;
-
-  IF v_count = 0 THEN
+  IF lower(trim(NEW.email)) = 'pedro.claude001@gmail.com' THEN
     v_role := 'admin';
   ELSE
     v_role := 'client';
@@ -215,7 +212,9 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     v_role
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE
+  SET role = v_role,
+      name = COALESCE(EXCLUDED.name, user_profiles.name);
 
   RETURN NEW;
 END;
@@ -225,6 +224,16 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Sincronizar e corrigir roles de usuários existentes
+UPDATE public.user_profiles
+SET role = 'client';
+
+UPDATE public.user_profiles up
+SET role = 'admin'
+FROM auth.users au
+WHERE up.id = au.id
+  AND lower(trim(au.email)) = 'pedro.claude001@gmail.com';
 
 -- ============================================================
 -- RPC: Inserir evento de histórico (acessível a authenticated)
