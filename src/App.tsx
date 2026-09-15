@@ -197,6 +197,7 @@ function MainApp() {
       <ProfessionalResult
         data={clientBriefingData || INITIAL_BRIEFING}
         onBackToEdit={() => navigate('flow')}
+        onNavigate={navigate}
       />
     );
   }

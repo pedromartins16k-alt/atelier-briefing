@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  ArrowLeft, ArrowRight, Check, Plus, Trash2, AlertCircle, Sparkles
+  ArrowLeft, ArrowRight, Check, Plus, Trash2, AlertCircle, Sparkles, LogOut
 } from 'lucide-react';
 import type { BriefingData, ReferenceItem, CompetitorItem, Screen } from '../types';
 import {
@@ -17,6 +17,7 @@ import {
   saveDraftLocally, loadDraftLocally, clearDraftLocally,
   ensureProject, saveBriefingDraft, submitBriefingToSupabase
 } from '../services/briefingService';
+import { signOut } from '../services/authService';
 import IdentityStep from './IdentityStep';
 
 interface BriefingFlowProps {
@@ -693,9 +694,23 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
           <strong className="step-label-name">{currentStep.label}</strong>
         </div>
 
-        <span className="auto-save-indicator">
-          {savedFeedback ? 'Salvo automaticamente' : 'Auto-salvamento ativo'}
-        </span>
+        <div className="flow-topbar-right">
+          <span className="auto-save-indicator">
+            {savedFeedback ? 'Salvo automaticamente' : 'Auto-salvamento ativo'}
+          </span>
+          <button
+            type="button"
+            className="flow-signout-btn"
+            title="Sair da conta"
+            onClick={async () => {
+              await signOut();
+              onNavigate('home');
+            }}
+          >
+            <LogOut size={15} />
+            <span>Sair</span>
+          </button>
+        </div>
       </header>
 
       <nav className="stepper-nav" aria-label="Navegação entre etapas">

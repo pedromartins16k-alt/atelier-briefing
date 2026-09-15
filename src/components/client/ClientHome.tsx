@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, FileText, Clock } from 'lucide-react';
+import { ArrowRight, FileText, Clock, LogOut } from 'lucide-react';
 import type { Screen, Project } from '../../types';
 import { PROJECT_STATUS_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { getClientBriefing } from '../../services/briefingService';
+import { signOut } from '../../services/authService';
 
 interface ClientHomeProps {
   onNavigate: (screen: Screen) => void;
@@ -36,6 +37,28 @@ export default function ClientHome({ onNavigate }: ClientHomeProps) {
         <button className="brand" onClick={() => onNavigate('home')}>
           <span>✦</span> atelier<span>.</span>
         </button>
+
+        <div className="client-header-actions">
+          <div className="client-user-badge">
+            <div className="client-user-avatar">
+              {profile?.name?.charAt(0).toUpperCase() || 'C'}
+            </div>
+            <span className="client-user-name">{profile?.name || 'Cliente'}</span>
+          </div>
+
+          <button
+            type="button"
+            className="client-signout-btn"
+            title="Sair da conta"
+            onClick={async () => {
+              await signOut();
+              onNavigate('home');
+            }}
+          >
+            <LogOut size={16} />
+            <span>Sair</span>
+          </button>
+        </div>
       </header>
 
       <main className="client-home-main">

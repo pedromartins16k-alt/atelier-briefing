@@ -3820,3 +3820,16 @@
   background: var(--preview-bg, #FAFAF8);
   color: var(--preview-text, #2C2520);
 }
+
+/* CLIENT HEADER & LOGOUT STYLES */
+.client-home-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 32px; background: var(--bg-primary, #FAF9F6); border-bottom: 1px solid var(--border-soft, #E8E4DE); }
+.client-header-actions { display: flex; align-items: center; gap: 16px; }
+.client-user-badge { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; background: var(--surface-secondary, #F4F0EB); border: 1px solid var(--border-soft, #E8E4DE); border-radius: 20px; }
+.client-user-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--accent, #6B5E4E); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.client-user-name { font-size: 12px; font-weight: 600; color: var(--text-primary, #2C2520); }
+.client-signout-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid var(--border-soft, #E8E4DE); border-radius: 6px; color: var(--text-secondary, #666); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; }
+.client-signout-btn:hover { background: #fff; border-color: #d9480f; color: #d9480f; }
+.flow-topbar-right { display: flex; align-items: center; gap: 16px; }
+.flow-signout-btn { display: flex; align-items: center; gap: 5px; padding: 5px 10px; background: transparent; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; color: var(--text-secondary, #666); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; }
+.flow-signout-btn:hover { background: rgba(217, 72, 15, 0.08); border-color: #d9480f; color: #d9480f; }
+.signout-btn-secondary:hover { border-color: #d9480f !important; color: #d9480f !important; }

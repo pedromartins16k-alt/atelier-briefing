@@ -1,15 +1,17 @@
-﻿import { useState } from 'react';
-import { AlertTriangle, Check, Copy, Download, FileText, Sparkles, ArrowLeft } from 'lucide-react';
-import type { BriefingData } from '../types';
+import { useState } from 'react';
+import { AlertTriangle, Check, Copy, Download, FileText, Sparkles, ArrowLeft, LogOut } from 'lucide-react';
+import type { BriefingData, Screen } from '../types';
 import { analyzeBriefing } from '../utils/briefingIntelligence';
 import { generateBriefingMarkdown } from '../utils/markdownExporter';
+import { signOut } from '../services/authService';
 
 type Props = {
   data: BriefingData;
   onBackToEdit: () => void;
+  onNavigate?: (screen: Screen) => void;
 };
 
-export default function ProfessionalResult({ data, onBackToEdit }: Props) {
+export default function ProfessionalResult({ data, onBackToEdit, onNavigate }: Props) {
   const [copied, setCopied] = useState(false);
   const analysis = analyzeBriefing(data);
   const markdown = generateBriefingMarkdown(data);
@@ -43,6 +45,11 @@ export default function ProfessionalResult({ data, onBackToEdit }: Props) {
           <p>Documento pronto para a equipe de design e desenvolvimento iniciar o projeto com clareza total.</p>
         </div>
         <div className="result-actions">
+          {onNavigate && (
+            <button className="btn-secondary" onClick={() => onNavigate('client-home')}>
+              Meu Painel
+            </button>
+          )}
           <button className="back-btn" onClick={onBackToEdit}>
             <ArrowLeft size={16} /> Ajustar respostas
           </button>
@@ -53,6 +60,18 @@ export default function ProfessionalResult({ data, onBackToEdit }: Props) {
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? 'Copiado para a área de transferência!' : 'Copiar Briefing'}
           </button>
+          {onNavigate && (
+            <button
+              className="btn-secondary signout-btn-secondary"
+              title="Sair da conta"
+              onClick={async () => {
+                await signOut();
+                onNavigate('home');
+              }}
+            >
+              <LogOut size={16} /> Sair
+            </button>
+          )}
         </div>
       </header>
 
