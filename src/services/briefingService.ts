@@ -35,7 +35,7 @@ export async function ensureProject(clientId: string, projectName?: string): Pro
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (existing) return existing.id;
 
@@ -49,7 +49,10 @@ export async function ensureProject(clientId: string, projectName?: string): Pro
     .select('id')
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Erro ao criar projeto:', error);
+    throw error;
+  }
   return data.id;
 }
 
@@ -60,19 +63,25 @@ export async function saveBriefingDraft(projectId: string, responses: BriefingDa
     .from('project_briefings')
     .select('id')
     .eq('project_id', projectId)
-    .single();
+    .maybeSingle();
 
   if (existing) {
-    const { error } = await sb
+    await sb
       .from('project_briefings')
       .update({ responses })
       .eq('project_id', projectId);
-    if (error) throw error;
   } else {
-    const { error } = await sb
+    await sb
       .from('project_briefings')
       .insert({ project_id: projectId, responses });
-    if (error) throw error;
+  }
+
+  // Atualizar nome do projeto se empresa informada
+  if (responses.companyName?.trim()) {
+    await sb
+      .from('projects')
+      .update({ name: responses.companyName.trim() })
+      .eq('id', projectId);
   }
 }
 
@@ -89,7 +98,7 @@ export async function submitBriefingToSupabase(projectId: string, data: Briefing
     .from('project_briefings')
     .select('id')
     .eq('project_id', projectId)
-    .single();
+    .maybeSingle();
 
   const payload = {
     responses: data,
@@ -113,17 +122,23 @@ export async function submitBriefingToSupabase(projectId: string, data: Briefing
     if (error) throw error;
   }
 
-  // Registrar histórico via RPC
-  await sb.rpc('add_project_history', {
-    p_project_id: projectId,
-    p_event_type: 'briefing_submitted',
-    p_description: 'Briefing enviado pelo cliente.'
-  });
+  // Registrar histórico via RPC (se disponível no banco)
+  try {
+    await sb.rpc('add_project_history', {
+      p_project_id: projectId,
+      p_event_type: 'briefing_submitted',
+      p_description: 'Briefing enviado pelo cliente.'
+    });
+  } catch {}
 
-  // Atualizar status do projeto
+  // Atualizar nome e status do projeto
+  const companyName = data.companyName?.trim();
   await sb
     .from('projects')
-    .update({ status: 'briefing_received' })
+    .update({
+      status: 'briefing_received',
+      ...(companyName ? { name: companyName } : {})
+    })
     .eq('id', projectId);
 }
 
@@ -136,7 +151,7 @@ export async function getClientBriefing(clientId: string): Promise<{ project: Pr
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!project) return null;
 
@@ -144,7 +159,7 @@ export async function getClientBriefing(clientId: string): Promise<{ project: Pr
     .from('project_briefings')
     .select('*')
     .eq('project_id', project.id)
-    .single();
+    .maybeSingle();
 
   return { project: project as Project, briefing: briefing as ProjectBriefing | null };
 }

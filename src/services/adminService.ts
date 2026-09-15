@@ -29,15 +29,48 @@ export async function getClientById(id: string): Promise<UserProfile> {
 
 export async function getAllProjects(): Promise<(Project & { client_name?: string; client_company?: string })[]> {
   const sb = getSupabase();
-  const { data, error } = await sb
+  try {
+    const { data, error } = await sb
+      .from('projects')
+      .select('*, user_profiles(name, company)')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      return data.map((p: any) => ({
+        ...p,
+        client_name: p.user_profiles?.name,
+        client_company: p.user_profiles?.company
+      }));
+    }
+  } catch {}
+
+  // Fallback se o join automático com user_profiles falhar
+  const { data: projects, error } = await sb
     .from('projects')
-    .select('*, user_profiles(name, company)')
+    .select('*')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map((p: any) => ({
+
+  if (error) {
+    console.error('Erro ao carregar projetos:', error);
+    return [];
+  }
+
+  const clientIds = Array.from(new Set((projects || []).map(p => p.client_id)));
+  let profilesMap: Record<string, { name: string; company?: string }> = {};
+  if (clientIds.length > 0) {
+    const { data: profiles } = await sb
+      .from('user_profiles')
+      .select('id, name, company')
+      .in('id', clientIds);
+    if (profiles) {
+      profilesMap = Object.fromEntries(profiles.map(pr => [pr.id, pr]));
+    }
+  }
+
+  return (projects || []).map(p => ({
     ...p,
-    client_name: p.user_profiles?.name,
-    client_company: p.user_profiles?.company
+    client_name: profilesMap[p.client_id]?.name,
+    client_company: profilesMap[p.client_id]?.company
   }));
 }
 
