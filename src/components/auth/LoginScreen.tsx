@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Screen } from '../../types';
-import { signIn } from '../../services/authService';
+import { signIn, getProfile } from '../../services/authService';
 
 interface LoginScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -21,10 +21,28 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
     setLoading(true);
     setError('');
     try {
-      await signIn(email.trim(), password);
-      // AuthContext detecta e redireciona automaticamente
-    } catch {
-      setError('Não foi possível entrar. Verifique seu e-mail e senha.');
+      const data = await signIn(email.trim(), password);
+      if (data?.user) {
+        // Busca perfil imediatamente e navega de forma determinística
+        const profile = await getProfile(data.user.id);
+        if (profile.role === 'admin') {
+          onNavigate('admin-dashboard');
+        } else {
+          onNavigate('client-home');
+        }
+      }
+    } catch (err: any) {
+      console.error('Erro de autenticação:', err);
+      const msg = err?.message?.toLowerCase() || '';
+      if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+        setError('E-mail ou senha incorretos. Se ainda não possui cadastro, clique em "Criar conta" abaixo.');
+      } else if (msg.includes('email not confirmed')) {
+        setError('Por favor, confirme seu e-mail pelo link enviado antes de entrar.');
+      } else if (msg.includes('supabase não está configurado') || msg.includes('failed to fetch')) {
+        setError('Não foi possível conectar ao servidor. Verifique as credenciais do Supabase.');
+      } else {
+        setError(err?.message || 'Não foi possível entrar. Verifique seu e-mail e senha.');
+      }
     } finally {
       setLoading(false);
     }

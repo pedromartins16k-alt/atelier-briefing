@@ -39,18 +39,23 @@ CREATE TRIGGER user_profiles_updated_at
 
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 
--- Usuário lê/atualiza o próprio perfil; admin lê todos
+-- Usuário sempre pode ler e atualizar seu próprio perfil diretamente sem recursão
 DROP POLICY IF EXISTS "user_profiles_select_own" ON public.user_profiles;
 CREATE POLICY "user_profiles_select_own" ON public.user_profiles
-  FOR SELECT USING (auth.uid() = id OR public.is_admin());
+  FOR SELECT USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "user_profiles_select_admin" ON public.user_profiles;
+CREATE POLICY "user_profiles_select_admin" ON public.user_profiles
+  FOR SELECT USING (public.is_admin());
+
+DROP POLICY IF EXISTS "user_profiles_insert_own" ON public.user_profiles;
+CREATE POLICY "user_profiles_insert_own" ON public.user_profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 DROP POLICY IF EXISTS "user_profiles_update_own" ON public.user_profiles;
 CREATE POLICY "user_profiles_update_own" ON public.user_profiles
   FOR UPDATE USING (auth.uid() = id)
-  WITH CHECK (
-    auth.uid() = id
-    AND role = (SELECT role FROM public.user_profiles WHERE id = auth.uid())
-  );
+  WITH CHECK (auth.uid() = id);
 
 -- ============================================================
 -- TABELA: projects

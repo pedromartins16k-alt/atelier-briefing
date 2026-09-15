@@ -90,7 +90,7 @@ function MainApp() {
     if (loading) return;
 
     const currentPath = window.location.pathname;
-    const isAuthRoute = ['/login', '/register', '/forgot'].includes(currentPath);
+    const isAuthRoute = ['/login', '/register', '/forgot'].includes(currentPath) || ['login', 'register', 'forgot'].includes(screen);
     const isAdminRoute = currentPath.startsWith('/admin') || screen.startsWith('admin-');
     const isClientRoute = currentPath.startsWith('/briefing') || ['client-home', 'flow', 'success'].includes(screen);
 
@@ -102,12 +102,9 @@ function MainApp() {
       return;
     }
 
-    // 2. Autenticado mas sem perfil ainda carregado -> aguardar
-    if (!profile) return;
-
-    // 3. Usuário logado em página de login/registro
+    // 2. Usuário autenticado em tela de login/cadastro -> redirecionar imediatamente
     if (isAuthRoute) {
-      if (profile.role === 'admin') {
+      if (profile?.role === 'admin') {
         navigate('admin-dashboard');
       } else {
         navigate('client-home');
@@ -115,14 +112,14 @@ function MainApp() {
       return;
     }
 
-    // 4. Role = client tentando acessar /admin -> bloqueia e vai para /briefing
-    if (profile.role === 'client' && isAdminRoute) {
+    // 3. Role = client tentando acessar /admin -> bloqueia e vai para /briefing
+    if (profile?.role === 'client' && isAdminRoute) {
       navigate('client-home');
       return;
     }
 
-    // 5. Role = admin tentando acessar /briefing como cliente -> redireciona para o painel admin
-    if (profile.role === 'admin' && (isClientRoute && currentPath === '/briefing')) {
+    // 4. Role = admin tentando acessar /briefing como cliente -> redireciona para o painel admin
+    if (profile?.role === 'admin' && (isClientRoute && (currentPath === '/briefing' || screen === 'client-home'))) {
       navigate('admin-dashboard');
       return;
     }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Screen } from '../../types';
-import { signUp } from '../../services/authService';
+import { signUp, getProfile } from '../../services/authService';
 
 interface RegisterScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -33,16 +33,28 @@ export default function RegisterScreen({ onNavigate }: RegisterScreenProps) {
     setError('');
     try {
       const result = await signUp(name.trim(), email.trim(), password);
-      // Se Supabase requer confirmação de e-mail
+      // Se Supabase requer confirmação por e-mail antes de criar sessão
       if (result.user && !result.session) {
         setSuccess(true);
+        return;
       }
-      // Se não requer confirmação, AuthContext redireciona automaticamente
+      
+      // Se já criou a sessão imediatamente
+      if (result.user) {
+        const profile = await getProfile(result.user.id);
+        if (profile.role === 'admin') {
+          onNavigate('admin-dashboard');
+        } else {
+          onNavigate('client-home');
+        }
+      }
     } catch (err: any) {
-      if (err?.message?.includes('already registered') || err?.message?.includes('already been registered')) {
+      console.error('Erro de cadastro:', err);
+      const msg = err?.message?.toLowerCase() || '';
+      if (msg.includes('already registered') || msg.includes('already been registered')) {
         setError('Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.');
       } else {
-        setError('Não foi possível criar a conta. Tente novamente.');
+        setError(err?.message || 'Não foi possível criar a conta. Tente novamente.');
       }
     } finally {
       setLoading(false);
