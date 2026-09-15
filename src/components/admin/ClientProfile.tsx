@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { Screen, UserProfile, Project } from '../../types';
+import type { NavigateOpts } from '../../App';
 import { PROJECT_STATUS_LABELS } from '../../types';
 import { getClientById, getProjectsByClient } from '../../services/adminService';
 
 interface ClientProfileProps {
   clientId: string;
-  onNavigate: (screen: Screen) => void;
-  setSelectedProjectId: (id: string) => void;
+  onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
 }
 
-export default function ClientProfile({ clientId, onNavigate, setSelectedProjectId }: ClientProfileProps) {
+export default function ClientProfile({ clientId, onNavigate }: ClientProfileProps) {
   const [client, setClient] = useState<UserProfile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,12 +76,17 @@ export default function ClientProfile({ clientId, onNavigate, setSelectedProject
         <div className="admin-card">
           <h2 className="admin-card-title">Dados do cliente</h2>
           <dl className="profile-fields">
-            {fields.map(f => f.value ? (
-              <div key={f.label} className="profile-field-row">
-                <dt>{f.label}</dt>
-                <dd>{f.value}</dd>
-              </div>
-            ) : null)}
+            {fields.map(f => {
+              const hasVal = Boolean(f.value && String(f.value).trim());
+              return (
+                <div key={f.label} className="profile-field-row">
+                  <dt>{f.label}</dt>
+                  <dd style={!hasVal ? { color: '#888', fontStyle: 'italic' } : undefined}>
+                    {hasVal ? f.value : 'Não informado'}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         </div>
 
@@ -108,8 +113,7 @@ export default function ClientProfile({ clientId, onNavigate, setSelectedProject
                     type="button"
                     className="admin-row-action"
                     onClick={() => {
-                      setSelectedProjectId(project.id);
-                      onNavigate('admin-project');
+                      onNavigate('admin-project', { projectId: project.id });
                     }}
                   >
                     Abrir <ArrowRight size={14} />

@@ -1,13 +1,14 @@
 import React from 'react';
 import { LayoutDashboard, Users, FolderOpen, Sliders, LogOut } from 'lucide-react';
 import type { Screen } from '../../types';
+import type { NavigateOpts } from '../../App';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../services/authService';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
   screen: Screen;
-  onNavigate: (screen: Screen) => void;
+  onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
 }
 
 const NAV_ITEMS: { id: Screen; label: string; icon: React.ComponentType<{ size?: number }> }[] = [

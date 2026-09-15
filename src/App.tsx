@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Screen, BriefingData } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Home from './components/Home';
@@ -37,6 +37,9 @@ function screenToPath(screen: Screen, clientId?: string, projectId?: string): st
   }
 }
 
+// Opções para navegação que permitem sobrescrever IDs sem depender do estado atual (evita stale closure)
+export type NavigateOpts = { projectId?: string; clientId?: string };
+
 function pathToScreen(path: string): { screen: Screen; id?: string } {
   const clean = path.replace(/\/+$/, '') || '/';
   if (clean === '/') return { screen: 'home' };
@@ -58,21 +61,39 @@ function pathToScreen(path: string): { screen: Screen; id?: string } {
 function MainApp() {
   const { user, profile, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>(() => pathToScreen(window.location.pathname).screen);
-  const [selectedClientId, setSelectedClientId] = useState<string>(() => pathToScreen(window.location.pathname).id || '');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => pathToScreen(window.location.pathname).id || '');
+  const [selectedClientId, setSelectedClientId] = useState<string>(() => {
+    const parsed = pathToScreen(window.location.pathname);
+    return parsed.screen === 'admin-client' ? (parsed.id || '') : '';
+  });
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => {
+    const parsed = pathToScreen(window.location.pathname);
+    return parsed.screen === 'admin-project' ? (parsed.id || '') : '';
+  });
   const [clientBriefingData, setClientBriefingData] = useState<BriefingData | null>(null);
 
-  // Navegação consistente sincronizando URL
-  const navigate = useCallback((target: Screen, updateHistory = true) => {
+  // Refs para manter valores sempre atuais (evitam stale closure no navigate)
+  const selectedClientIdRef = useRef(selectedClientId);
+  const selectedProjectIdRef = useRef(selectedProjectId);
+  useEffect(() => { selectedClientIdRef.current = selectedClientId; }, [selectedClientId]);
+  useEffect(() => { selectedProjectIdRef.current = selectedProjectId; }, [selectedProjectId]);
+
+  // Navegação consistente sincronizando URL.
+  // opts permite sobrescrever clientId/projectId sem depender do estado potencialmente stale.
+  const navigate = useCallback((target: Screen, opts?: NavigateOpts, updateHistory = true) => {
+    const cid = opts?.clientId ?? selectedClientIdRef.current;
+    const pid = opts?.projectId ?? selectedProjectIdRef.current;
+    if (opts?.clientId) setSelectedClientId(opts.clientId);
+    if (opts?.projectId) setSelectedProjectId(opts.projectId);
     setScreen(target);
     if (updateHistory) {
-      const path = screenToPath(target, selectedClientId, selectedProjectId);
+      const path = screenToPath(target, cid, pid);
       if (window.location.pathname !== path) {
         window.history.pushState(null, '', path);
       }
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedClientId, selectedProjectId]);
+  }, []);
+
 
   // Listener para popstate (botões voltar/avançar do navegador)
   useEffect(() => {
@@ -209,27 +230,22 @@ function MainApp() {
         {screen === 'admin-dashboard' && (
           <AdminDashboard
             onNavigate={navigate}
-            setSelectedProjectId={setSelectedProjectId}
-            setSelectedClientId={setSelectedClientId}
           />
         )}
         {screen === 'admin-clients' && (
           <ClientsList
             onNavigate={navigate}
-            setSelectedClientId={setSelectedClientId}
           />
         )}
         {screen === 'admin-client' && (
           <ClientProfile
             clientId={selectedClientId}
             onNavigate={navigate}
-            setSelectedProjectId={setSelectedProjectId}
           />
         )}
         {screen === 'admin-projects' && (
           <ProjectsList
             onNavigate={navigate}
-            setSelectedProjectId={setSelectedProjectId}
           />
         )}
         {screen === 'admin-project' && (

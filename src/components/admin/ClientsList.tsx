@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Search, ArrowRight, User } from 'lucide-react';
 import type { Screen, UserProfile } from '../../types';
+import type { NavigateOpts } from '../../App';
 import { getAllClients } from '../../services/adminService';
 
 interface ClientsListProps {
-  onNavigate: (screen: Screen) => void;
-  setSelectedClientId: (id: string) => void;
+  onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
 }
 
-export default function ClientsList({ onNavigate, setSelectedClientId }: ClientsListProps) {
+export default function ClientsList({ onNavigate }: ClientsListProps) {
   const [clients, setClients] = useState<UserProfile[]>([]);
   const [filtered, setFiltered] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
@@ -27,6 +27,7 @@ export default function ClientsList({ onNavigate, setSelectedClientId }: Clients
       clients.filter(c =>
         c.name.toLowerCase().includes(q) ||
         (c.company || '').toLowerCase().includes(q) ||
+        (c.segment || '').toLowerCase().includes(q) ||
         c.id.toLowerCase().includes(q)
       )
     );
@@ -45,7 +46,7 @@ export default function ClientsList({ onNavigate, setSelectedClientId }: Clients
         <Search size={16} />
         <input
           type="search"
-          placeholder="Buscar por nome, empresa…"
+          placeholder="Buscar por nome, empresa, segmento…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -80,8 +81,7 @@ export default function ClientsList({ onNavigate, setSelectedClientId }: Clients
                   key={client.id}
                   className="admin-table-row clickable"
                   onClick={() => {
-                    setSelectedClientId(client.id);
-                    onNavigate('admin-client');
+                    onNavigate('admin-client', { clientId: client.id });
                   }}
                 >
                   <td>
@@ -102,8 +102,7 @@ export default function ClientsList({ onNavigate, setSelectedClientId }: Clients
                       className="admin-row-action"
                       onClick={e => {
                         e.stopPropagation();
-                        setSelectedClientId(client.id);
-                        onNavigate('admin-client');
+                        onNavigate('admin-client', { clientId: client.id });
                       }}
                     >
                       <ArrowRight size={14} />

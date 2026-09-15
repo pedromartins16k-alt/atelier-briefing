@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Search, ArrowRight, Filter } from 'lucide-react';
 import type { Screen, Project, ProjectStatus } from '../../types';
+import type { NavigateOpts } from '../../App';
 import { PROJECT_STATUS_LABELS } from '../../types';
 import { getAllProjects } from '../../services/adminService';
 
 interface ProjectsListProps {
-  onNavigate: (screen: Screen) => void;
-  setSelectedProjectId: (id: string) => void;
+  onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
 }
 
 type ProjectWithClient = Project & { client_name?: string; client_company?: string };
 
-export default function ProjectsList({ onNavigate, setSelectedProjectId }: ProjectsListProps) {
+export default function ProjectsList({ onNavigate }: ProjectsListProps) {
   const [projects, setProjects] = useState<ProjectWithClient[]>([]);
   const [filtered, setFiltered] = useState<ProjectWithClient[]>([]);
   const [search, setSearch] = useState('');
@@ -103,8 +103,7 @@ export default function ProjectsList({ onNavigate, setSelectedProjectId }: Proje
                   key={project.id}
                   className="admin-table-row clickable"
                   onClick={() => {
-                    setSelectedProjectId(project.id);
-                    onNavigate('admin-project');
+                    onNavigate('admin-project', { projectId: project.id });
                   }}
                 >
                   <td><strong>{project.name}</strong></td>
@@ -123,8 +122,7 @@ export default function ProjectsList({ onNavigate, setSelectedProjectId }: Proje
                       className="admin-row-action"
                       onClick={e => {
                         e.stopPropagation();
-                        setSelectedProjectId(project.id);
-                        onNavigate('admin-project');
+                        onNavigate('admin-project', { projectId: project.id });
                       }}
                     >
                       Abrir <ArrowRight size={14} />

@@ -4,6 +4,7 @@ import {
   Plus, Trash2, Clock, AlertTriangle, Info, Zap, Link
 } from 'lucide-react';
 import type { Screen, Project, ProjectBriefing, InternalNote, ProjectHistoryEvent, ProjectStatus, BriefingData } from '../../types';
+import type { NavigateOpts } from '../../App';
 import { PROJECT_STATUS_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -15,7 +16,7 @@ import { generateMarkdown } from '../../utils/markdownExporter';
 
 interface ProjectDetailProps {
   projectId: string;
-  onNavigate: (screen: Screen) => void;
+  onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
 }
 
 type Tab = 'briefing' | 'diagnosis' | 'original' | 'references' | 'features' | 'notes' | 'history';
@@ -37,11 +38,12 @@ const STATUS_OPTIONS: ProjectStatus[] = [
 
 export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailProps) {
   const { profile } = useAuth();
-  const [project, setProject] = useState<Project & { client_name?: string; client_company?: string } | null>(null);
+  const [project, setProject] = useState<(Project & { client_name?: string; client_company?: string; user_profiles?: any }) | null>(null);
   const [briefing, setBriefing] = useState<ProjectBriefing | null>(null);
   const [notes, setNotes] = useState<InternalNote[]>([]);
   const [history, setHistory] = useState<ProjectHistoryEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('briefing');
   const [copied, setCopied] = useState(false);
   const [newNote, setNewNote] = useState('');
@@ -49,17 +51,37 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
   const [statusChanging, setStatusChanging] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      getProjectById(projectId),
-      getBriefingByProject(projectId),
-      getNotesByProject(projectId),
-      getHistoryByProject(projectId)
-    ]).then(([p, b, n, h]) => {
-      setProject(p as any);
-      setBriefing(b);
-      setNotes(n);
-      setHistory(h);
-    }).catch(() => {}).finally(() => setLoading(false));
+    if (!projectId) {
+      setLoading(false);
+      setProject(null);
+      return;
+    }
+
+    setLoading(true);
+    setLoadError(false);
+
+    getProjectById(projectId)
+      .then(async p => {
+        if (!p) {
+          setProject(null);
+          return;
+        }
+        setProject(p as any);
+
+        const [b, n, h] = await Promise.all([
+          getBriefingByProject(projectId).catch(() => null),
+          getNotesByProject(projectId).catch(() => []),
+          getHistoryByProject(projectId).catch(() => [])
+        ]);
+        setBriefing(b);
+        setNotes(n || []);
+        setHistory(h || []);
+      })
+      .catch(err => {
+        console.error('Erro ao carregar projeto:', err);
+        setLoadError(true);
+      })
+      .finally(() => setLoading(false));
   }, [projectId]);
 
   const handleCopy = async () => {
@@ -123,7 +145,23 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
   if (loading) {
     return (
       <div className="admin-page">
-        <div className="admin-loading"><div className="loading-spinner" /><span>Carregando projeto…</span></div>
+        <div className="admin-loading">
+          <div className="loading-spinner" />
+          <span>Carregando projeto…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="admin-page">
+        <div className="admin-page-header">
+          <button type="button" className="admin-back-btn" onClick={() => onNavigate('admin-projects')}>
+            <ArrowLeft size={16} /> Projetos
+          </button>
+        </div>
+        <div className="admin-error">Não foi possível carregar o projeto.</div>
       </div>
     );
   }
@@ -131,6 +169,11 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
   if (!project) {
     return (
       <div className="admin-page">
+        <div className="admin-page-header">
+          <button type="button" className="admin-back-btn" onClick={() => onNavigate('admin-projects')}>
+            <ArrowLeft size={16} /> Projetos
+          </button>
+        </div>
         <div className="admin-error">Projeto não encontrado.</div>
       </div>
     );
@@ -232,6 +275,64 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
                   </div>
                 )}
 
+                <div className="admin-grid-two">
+                  <div className="admin-card">
+                    <h2 className="admin-card-title">Dados do Cliente</h2>
+                    <dl className="profile-fields">
+                      <div className="profile-field-row">
+                        <dt>Nome</dt>
+                        <dd>{responses?.responsibleName || project.client_name || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Empresa</dt>
+                        <dd>{responses?.companyName || project.client_company || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>E-mail</dt>
+                        <dd>{responses?.contactEmail || (project as any).client_email || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>WhatsApp</dt>
+                        <dd>{responses?.contactWhatsapp || project.user_profiles?.phone || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Segmento</dt>
+                        <dd>{responses?.businessSegment || project.user_profiles?.segment || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Localização</dt>
+                        <dd>{responses?.serviceLocation || project.user_profiles?.location || 'Não informado'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <div className="admin-card">
+                    <h2 className="admin-card-title">Estrutura & Planejamento</h2>
+                    <dl className="profile-fields">
+                      <div className="profile-field-row">
+                        <dt>Tipo de projeto</dt>
+                        <dd>{project.type || (responses?.selectedPages?.length ? 'Website Personalizado' : 'Não informado')}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Qtd. de páginas</dt>
+                        <dd>{responses?.selectedPages?.length ? `${responses.selectedPages.length} página(s)` : 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Páginas escolhidas</dt>
+                        <dd>{responses?.selectedPages?.join(', ') || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Faixa de investimento</dt>
+                        <dd>{responses?.investmentRange || 'Não informado'}</dd>
+                      </div>
+                      <div className="profile-field-row">
+                        <dt>Prazo desejado</dt>
+                        <dd>{responses?.targetLaunchDate || 'Não informado'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+
                 {briefing.sitemap && briefing.sitemap.length > 0 && (
                   <div className="admin-card">
                     <h2 className="admin-card-title">Sitemap Inicial Sugerido</h2>
@@ -286,44 +387,61 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
               <div className="admin-empty-state"><p>Nenhuma resposta disponível.</p></div>
             ) : (
               <div className="responses-grid">
-                <ResponseSection title="Sobre o negócio" items={[
-                  { label: 'Empresa', value: responses.companyName },
-                  { label: 'Responsável', value: responses.responsibleName },
-                  { label: 'E-mail', value: responses.contactEmail },
-                  { label: 'WhatsApp', value: responses.contactWhatsapp },
-                  { label: 'Segmento', value: responses.businessSegment },
-                  { label: 'Descrição', value: responses.businessDescription },
-                  { label: 'Produtos/Serviços', value: responses.productsAndServices },
-                  { label: 'Diferencial', value: responses.businessDifferentiator },
-                  { label: 'Tempo de mercado', value: responses.businessAge },
-                  { label: 'Localização', value: responses.serviceLocation }
+                <ResponseSection title="Dados do Cliente" items={[
+                  { label: 'Nome', value: responses.responsibleName || project.client_name },
+                  { label: 'Empresa', value: responses.companyName || project.client_company },
+                  { label: 'E-mail', value: responses.contactEmail || (project as any).client_email },
+                  { label: 'WhatsApp', value: responses.contactWhatsapp || project.user_profiles?.phone },
+                  { label: 'Segmento', value: responses.businessSegment || project.user_profiles?.segment },
+                  { label: 'Localização', value: responses.serviceLocation || project.user_profiles?.location },
+                  { label: 'Descrição do negócio', value: responses.businessDescription },
+                  { label: 'Produtos e serviços', value: responses.productsAndServices },
+                  { label: 'Diferencial competitivo', value: responses.businessDifferentiator },
+                  { label: 'Tempo de mercado', value: responses.businessAge }
                 ]} />
-                <ResponseSection title="Objetivo" items={[
+
+                <ResponseSection title="Objetivos" items={[
                   { label: 'Objetivos principais', value: responses.mainGoals?.join(', ') },
-                  { label: 'CTA principal', value: responses.singlePrimaryAction }
+                  { label: 'Ação principal do visitante (CTA)', value: responses.singlePrimaryAction }
                 ]} />
-                <ResponseSection title="Público" items={[
-                  { label: 'Público principal', value: responses.targetAudience },
-                  { label: 'Tipo', value: responses.audienceType },
-                  { label: 'Faixa etária', value: responses.ageRange },
-                  { label: 'Poder aquisitivo', value: responses.purchasingPower }
+
+                <ResponseSection title="Estrutura do Site" items={[
+                  { label: 'Tipo de projeto', value: project.type || (responses.selectedPages?.length ? 'Website Personalizado' : '') },
+                  { label: 'Páginas selecionadas', value: responses.selectedPages?.join(', ') },
+                  { label: 'Quantidade de páginas', value: responses.selectedPages?.length ? `${responses.selectedPages.length} página(s)` : '' },
+                  { label: 'Seção ou página indispensável', value: responses.indispensablePageOrSection }
                 ]} />
-                <ResponseSection title="Funcionalidades" items={[
-                  { label: 'Funcionalidades', value: responses.selectedFeatures?.join(', ') },
-                  { label: 'Páginas', value: responses.selectedPages?.join(', ') }
-                ]} />
-                <ResponseSection title="Identidade visual" items={[
-                  { label: 'Percepções da marca', value: responses.brandPerceptions?.join(', ') },
+
+                <ResponseSection title="Design e Identidade Visual" items={[
+                  { label: 'Modelo / Paleta escolhida', value: responses.selectedPaletteId },
+                  { label: 'Estilo visual', value: responses.visualStyle },
+                  { label: 'Sensação desejada (Percepções)', value: responses.brandPerceptions?.join(', ') },
                   { label: 'Cores da marca', value: responses.brandColors },
                   { label: 'Cores a evitar', value: responses.colorsToAvoid },
-                  { label: 'Status da identidade', value: responses.identityStatus }
+                  { label: 'Status da identidade visual', value: responses.identityStatus }
                 ]} />
-                <ResponseSection title="Prazo e investimento" items={[
-                  { label: 'Data de lançamento', value: responses.targetLaunchDate },
-                  { label: 'Investimento', value: responses.investmentRange }
+
+                <ResponseSection title="Recursos Solicitados" items={[
+                  { label: 'Recursos e funcionalidades', value: responses.selectedFeatures?.join(', ') }
                 ]} />
-                <ResponseSection title="Observações finais" items={[
-                  { label: 'Observações', value: responses.finalObservations }
+
+                <ResponseSection title="Estratégia e Público" items={[
+                  { label: 'Público principal', value: responses.targetAudience },
+                  { label: 'Tipo de público', value: responses.audienceType ? responses.audienceType.toUpperCase() : '' },
+                  { label: 'Faixa etária', value: responses.ageRange },
+                  { label: 'Poder aquisitivo', value: responses.purchasingPower },
+                  { label: 'Características do público', value: responses.audienceTraits },
+                  { label: 'Público que NÃO quer atrair', value: responses.excludedAudience }
+                ]} />
+
+                <ResponseSection title="Investimento e Prazos" items={[
+                  { label: 'Investimento estimado / Faixa', value: responses.investmentRange },
+                  { label: 'Data de lançamento pretendida', value: responses.targetLaunchDate }
+                ]} />
+
+                <ResponseSection title="Revisão e Observações Finais" items={[
+                  { label: 'Resumo executivo', value: briefing.executive_summary },
+                  { label: 'Observações adicionais', value: responses.finalObservations }
                 ]} />
               </div>
             )}
@@ -507,19 +625,23 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
   );
 }
 
-function ResponseSection({ title, items }: { title: string; items: { label: string; value?: string }[] }) {
-  const filtered = items.filter(i => i.value);
-  if (filtered.length === 0) return null;
+function ResponseSection({ title, items }: { title: string; items: { label: string; value?: string | number | null }[] }) {
   return (
     <div className="admin-card">
       <h2 className="admin-card-title">{title}</h2>
       <dl className="profile-fields">
-        {filtered.map(item => (
-          <div key={item.label} className="profile-field-row">
-            <dt>{item.label}</dt>
-            <dd>{item.value}</dd>
-          </div>
-        ))}
+        {items.map(item => {
+          const hasValue = item.value !== undefined && item.value !== null && String(item.value).trim() !== '';
+          const displayVal = hasValue ? String(item.value) : 'Não informado';
+          return (
+            <div key={item.label} className="profile-field-row">
+              <dt>{item.label}</dt>
+              <dd style={!hasValue ? { color: '#888', fontStyle: 'italic' } : undefined}>
+                {displayVal}
+              </dd>
+            </div>
+          );
+        })}
       </dl>
     </div>
   );

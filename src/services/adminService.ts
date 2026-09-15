@@ -11,7 +11,63 @@ export async function getAllClients(): Promise<UserProfile[]> {
     .eq('role', 'client')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as UserProfile[];
+
+  const clients = (data || []) as UserProfile[];
+  if (clients.length === 0) return [];
+
+  // Complementar dados de clientes caso empresa/segmento/localização não estejam em user_profiles
+  const clientIdsWithMissingData = clients
+    .filter(c => !c.company || !c.segment || !c.location)
+    .map(c => c.id);
+
+  if (clientIdsWithMissingData.length > 0) {
+    try {
+      const { data: projects } = await sb
+        .from('projects')
+        .select('id, client_id, name')
+        .in('client_id', clientIdsWithMissingData)
+        .order('created_at', { ascending: false });
+
+      if (projects && projects.length > 0) {
+        const projectIds = projects.map(p => p.id);
+        const { data: briefings } = await sb
+          .from('project_briefings')
+          .select('project_id, responses')
+          .in('project_id', projectIds)
+          .order('created_at', { ascending: false });
+
+        if (briefings && briefings.length > 0) {
+          const projectToClient = Object.fromEntries(projects.map(p => [p.id, p.client_id]));
+          const clientBriefingMap: Record<string, any> = {};
+
+          for (const b of briefings) {
+            const cid = projectToClient[b.project_id];
+            if (cid && !clientBriefingMap[cid] && b.responses) {
+              clientBriefingMap[cid] = b.responses;
+            }
+          }
+
+          return clients.map(c => {
+            const resp = clientBriefingMap[c.id];
+            if (!resp) return c;
+
+            return {
+              ...c,
+              company: c.company || resp.companyName || c.company,
+              segment: c.segment || resp.businessSegment || c.segment,
+              location: c.location || resp.serviceLocation || c.location,
+              phone: c.phone || resp.contactWhatsapp || c.phone,
+              name: c.name || resp.responsibleName || c.name
+            };
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao enriquecer clientes com dados de briefing:', e);
+    }
+  }
+
+  return clients;
 }
 
 export async function getClientById(id: string): Promise<UserProfile> {
@@ -22,7 +78,43 @@ export async function getClientById(id: string): Promise<UserProfile> {
     .eq('id', id)
     .single();
   if (error) throw error;
-  return data as UserProfile;
+
+  const client = data as UserProfile;
+
+  // Se faltar algum campo essencial, buscar do briefing mais recente
+  if (!client.company || !client.segment || !client.location) {
+    try {
+      const { data: project } = await sb
+        .from('projects')
+        .select('id')
+        .eq('client_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (project) {
+        const { data: briefing } = await sb
+          .from('project_briefings')
+          .select('responses')
+          .eq('project_id', project.id)
+          .maybeSingle();
+
+        const resp = briefing?.responses as any;
+        if (resp) {
+          return {
+            ...client,
+            company: client.company || resp.companyName || client.company,
+            segment: client.segment || resp.businessSegment || client.segment,
+            location: client.location || resp.serviceLocation || client.location,
+            phone: client.phone || resp.contactWhatsapp || client.phone,
+            name: client.name || resp.responsibleName || client.name
+          };
+        }
+      }
+    } catch {}
+  }
+
+  return client;
 }
 
 // ---- Projetos ----
@@ -39,7 +131,7 @@ export async function getAllProjects(): Promise<(Project & { client_name?: strin
       return data.map((p: any) => ({
         ...p,
         client_name: p.user_profiles?.name,
-        client_company: p.user_profiles?.company
+        client_company: p.user_profiles?.company || (p.name !== 'Novo Projeto' ? p.name : undefined)
       }));
     }
   } catch {}
@@ -70,7 +162,7 @@ export async function getAllProjects(): Promise<(Project & { client_name?: strin
   return (projects || []).map(p => ({
     ...p,
     client_name: profilesMap[p.client_id]?.name,
-    client_company: profilesMap[p.client_id]?.company
+    client_company: profilesMap[p.client_id]?.company || (p.name !== 'Novo Projeto' ? p.name : undefined)
   }));
 }
 
@@ -85,18 +177,57 @@ export async function getProjectsByClient(clientId: string): Promise<Project[]> 
   return (data || []) as Project[];
 }
 
-export async function getProjectById(id: string): Promise<Project & { client_name?: string; client_company?: string; client_email?: string }> {
+export async function getProjectById(id: string): Promise<(Project & { client_name?: string; client_company?: string; client_email?: string; user_profiles?: any }) | null> {
   const sb = getSupabase();
-  const { data, error } = await sb
+  if (!id) return null;
+
+  try {
+    const { data, error } = await sb
+      .from('projects')
+      .select('*, user_profiles(name, company, id, phone, segment, location, website, instagram)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        ...data,
+        client_name: (data as any).user_profiles?.name,
+        client_company: (data as any).user_profiles?.company
+      } as any;
+    }
+  } catch {}
+
+  // Fallback se o join automático com user_profiles falhar
+  const { data: project, error } = await sb
     .from('projects')
-    .select('*, user_profiles(name, company, id, phone, segment, location, website, instagram)')
+    .select('*')
     .eq('id', id)
-    .single();
-  if (error) throw error;
+    .maybeSingle();
+
+  if (error) {
+    console.error('Erro ao buscar projeto:', error);
+    throw error;
+  }
+
+  if (!project) return null;
+
+  let clientProfile: any = null;
+  if (project.client_id) {
+    try {
+      const { data: profile } = await sb
+        .from('user_profiles')
+        .select('name, company, id, phone, segment, location, website, instagram')
+        .eq('id', project.client_id)
+        .maybeSingle();
+      clientProfile = profile;
+    } catch {}
+  }
+
   return {
-    ...data,
-    client_name: (data as any).user_profiles?.name,
-    client_company: (data as any).user_profiles?.company
+    ...project,
+    client_name: clientProfile?.name,
+    client_company: clientProfile?.company,
+    user_profiles: clientProfile
   } as any;
 }
 

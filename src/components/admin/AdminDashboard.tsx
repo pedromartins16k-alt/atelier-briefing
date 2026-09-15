@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Users, FolderOpen, FileText, TrendingUp } from 'lucide-react';
 import type { Screen, Project } from '../../types';
+import type { NavigateOpts } from '../../App';
 import { PROJECT_STATUS_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { getDashboardStats, getAllProjects } from '../../services/adminService';
 
 interface AdminDashboardProps {
-  onNavigate: (screen: Screen) => void;
-  setSelectedProjectId: (id: string) => void;
-  setSelectedClientId: (id: string) => void;
+  onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
 }
 
 interface Stats {
@@ -20,7 +19,7 @@ interface Stats {
   completed: number;
 }
 
-export default function AdminDashboard({ onNavigate, setSelectedProjectId, setSelectedClientId }: AdminDashboardProps) {
+export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const { profile } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentProjects, setRecentProjects] = useState<(Project & { client_name?: string; client_company?: string })[]>([]);
@@ -125,9 +124,7 @@ export default function AdminDashboard({ onNavigate, setSelectedProjectId, setSe
                             type="button"
                             className="admin-row-action"
                             onClick={() => {
-                              setSelectedProjectId(project.id);
-                              setSelectedClientId(project.client_id);
-                              onNavigate('admin-project');
+                              onNavigate('admin-project', { projectId: project.id, clientId: project.client_id });
                             }}
                           >
                             Abrir

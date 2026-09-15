@@ -15,6 +15,7 @@ import CostNotepad from './preview/CostNotepad';
 import { useAuth } from '../context/AuthContext';
 import {
   saveDraftLocally, loadDraftLocally, clearDraftLocally,
+  loadDraftProjectId, saveDraftProjectId,
   ensureProject, saveBriefingDraft, submitBriefingToSupabase
 } from '../services/briefingService';
 import { signOut } from '../services/authService';
@@ -67,7 +68,9 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
         }
         if (!uid) return;
 
-        const id = await ensureProject(uid, data.companyName);
+        // Restaurar projectId salvo no draft local (evita criar projeto duplicado)
+        const savedProjectId = loadDraftProjectId();
+        const id = await ensureProject(uid, savedProjectId, data.companyName);
         setLocalProjectId(id);
         setProjectId(id);
         saveBriefingDraft(id, data).catch(() => {});
@@ -159,7 +162,8 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
           uid = sess?.session?.user?.id;
         }
         if (uid) {
-          pid = await ensureProject(uid, data.companyName);
+          const savedProjectId = loadDraftProjectId();
+          pid = await ensureProject(uid, savedProjectId, data.companyName);
           setLocalProjectId(pid);
           setProjectId(pid);
         }
