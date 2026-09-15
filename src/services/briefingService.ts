@@ -37,13 +37,21 @@ export async function ensureProject(clientId: string, projectName?: string): Pro
     .limit(1)
     .maybeSingle();
 
-  if (existing) return existing.id;
+  if (existing) {
+    if (projectName && projectName.trim() && projectName !== 'Novo Projeto') {
+      await sb
+        .from('projects')
+        .update({ name: projectName.trim() })
+        .eq('id', existing.id);
+    }
+    return existing.id;
+  }
 
   const { data, error } = await sb
     .from('projects')
     .insert({
       client_id: clientId,
-      name: projectName || 'Novo Projeto',
+      name: projectName?.trim() || 'Novo Projeto',
       status: 'briefing_received'
     })
     .select('id')

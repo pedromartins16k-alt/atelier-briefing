@@ -18,6 +18,7 @@ import {
   ensureProject, saveBriefingDraft, submitBriefingToSupabase
 } from '../services/briefingService';
 import { signOut } from '../services/authService';
+import { getSupabase } from '../services/supabase';
 import IdentityStep from './IdentityStep';
 
 interface BriefingFlowProps {
@@ -54,21 +55,35 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
     return () => clearTimeout(t);
   }, [data]);
 
-  // Garantir projeto ao carregar
+  // Garantir projeto no Supabase ao carregar
   useEffect(() => {
-    if (!profile) return;
-    ensureProject(profile.id).then(id => {
-      setLocalProjectId(id);
-      setProjectId(id);
-    }).catch(() => {});
+    async function initProject() {
+      try {
+        const sb = getSupabase();
+        let uid = profile?.id;
+        if (!uid) {
+          const { data: sess } = await sb.auth.getSession();
+          uid = sess?.session?.user?.id;
+        }
+        if (!uid) return;
+
+        const id = await ensureProject(uid, data.companyName);
+        setLocalProjectId(id);
+        setProjectId(id);
+        saveBriefingDraft(id, data).catch(() => {});
+      } catch (e) {
+        console.error('Erro ao inicializar projeto no Supabase:', e);
+      }
+    }
+    initProject();
   }, [profile, setProjectId]);
 
-  // Salvar rascunho no Supabase periodicamente
+  // Salvar rascunho no Supabase periodicamente a cada alteração (debounce 1.2s)
   useEffect(() => {
     if (!projectId) return;
     const t = setTimeout(() => {
       saveBriefingDraft(projectId, data).catch(() => {});
-    }, 3000);
+    }, 1200);
     return () => clearTimeout(t);
   }, [data, projectId]);
 
@@ -136,19 +151,29 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
     setSubmitting(true);
     try {
       let pid = projectId;
-      if (!pid && profile) {
-        pid = await ensureProject(profile.id);
-        setLocalProjectId(pid);
-        setProjectId(pid);
+      if (!pid) {
+        const sb = getSupabase();
+        let uid = profile?.id;
+        if (!uid) {
+          const { data: sess } = await sb.auth.getSession();
+          uid = sess?.session?.user?.id;
+        }
+        if (uid) {
+          pid = await ensureProject(uid, data.companyName);
+          setLocalProjectId(pid);
+          setProjectId(pid);
+        }
       }
       if (pid) {
         await submitBriefingToSupabase(pid, data);
+      } else {
+        console.warn('Projeto não possui ID associado para salvamento remoto.');
       }
       clearDraftLocally();
       setScreen('success');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // Em caso de erro de rede, ainda mostra sucesso localmente
+    } catch (err) {
+      console.error('Erro ao submeter briefing final:', err);
       clearDraftLocally();
       setScreen('success');
     } finally {
