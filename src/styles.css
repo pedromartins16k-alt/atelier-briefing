@@ -2409,4 +2409,613 @@
   }
 }
 
+/* ============================================================
+   BRIEFING TWO-COLUMN LAYOUT: LIVE PREVIEW & COST NOTEPAD
+   ============================================================ */
+
+.flow-workspace.has-preview-sidebar {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 40px 3vw 80px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1.2fr);
+  gap: 36px;
+  align-items: start;
+}
+
+.flow-form-column {
+  min-width: 0;
+  width: 100%;
+}
+
+.flow-preview-column {
+  position: sticky;
+  top: 92px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.preview-sticky-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Tag de Seção */
+.preview-section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 10px var(--mono);
+  letter-spacing: 0.08em;
+  color: #7b8e2b;
+  background: #f1f6dd;
+  border: 1px solid #dbe8af;
+  padding: 4px 10px;
+  border-radius: 99px;
+  align-self: flex-start;
+  margin-bottom: 8px;
+}
+
+/* ------------------------------------------------------------
+   LAPTOP MOCKUP & DISPLAY
+   ------------------------------------------------------------ */
+.preview-device-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.laptop-mockup {
+  position: relative;
+  width: 100%;
+  filter: drop-shadow(0 14px 28px rgba(25, 30, 20, 0.08));
+}
+
+/* Moldura Superior (Tela) */
+.laptop-screen-bezel {
+  background: #181b16;
+  border-radius: 12px 12px 4px 4px;
+  padding: 10px 10px 12px;
+  border: 2px solid #282d25;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.laptop-camera {
+  width: 5px;
+  height: 5px;
+  background: #2a3126;
+  border: 1px solid #3c4436;
+  border-radius: 50%;
+  margin: 0 auto 7px;
+}
+
+/* Tela do Mini-Site */
+.laptop-display {
+  background: #ffffff;
+  border-radius: 5px;
+  overflow: hidden;
+  min-height: 240px;
+  max-height: 310px;
+  overflow-y: auto;
+  font-size: 11px;
+  transition: all 0.35s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Tipografias Reativas no Mini-Site */
+.laptop-display.font-serif {
+  font-family: var(--serif);
+}
+
+.laptop-display.font-sans {
+  font-family: var(--sans);
+}
+
+.laptop-display.font-mono {
+  font-family: var(--mono);
+}
+
+/* Temas Reativos no Mini-Site */
+/* 1. Tema Padrão Atelier (Olive) */
+.laptop-display.theme-olive {
+  --mini-primary: #7a941e;
+  --mini-primary-hover: #677d17;
+  --mini-bg: #f9fbf4;
+  --mini-surface: #ffffff;
+  --mini-text: #191c16;
+  --mini-muted: #6e7368;
+  --mini-border: #e3ebd0;
+  --mini-badge: #eef6d8;
+}
+
+/* 2. Tema Azul */
+.laptop-display.theme-blue {
+  --mini-primary: #1971c2;
+  --mini-primary-hover: #145ca0;
+  --mini-bg: #f5f9ff;
+  --mini-surface: #ffffff;
+  --mini-text: #111a24;
+  --mini-muted: #5f7082;
+  --mini-border: #d4e5f7;
+  --mini-badge: #e4f0fc;
+}
+
+/* 3. Tema Dark / Preto */
+.laptop-display.theme-dark {
+  --mini-primary: #d8ff53;
+  --mini-primary-hover: #c4ec39;
+  --mini-bg: #141713;
+  --mini-surface: #1e221b;
+  --mini-text: #f5f7f0;
+  --mini-muted: #9ba195;
+  --mini-border: #2e342a;
+  --mini-badge: #2c3327;
+}
+
+/* 4. Tema Verde Esmeralda */
+.laptop-display.theme-green {
+  --mini-primary: #2b8a3e;
+  --mini-primary-hover: #227031;
+  --mini-bg: #f4fbf5;
+  --mini-surface: #ffffff;
+  --mini-text: #122015;
+  --mini-muted: #5e7362;
+  --mini-border: #cfead5;
+  --mini-badge: #e0f4e5;
+}
+
+/* 5. Tema Warm / Terracota */
+.laptop-display.theme-warm {
+  --mini-primary: #d9480f;
+  --mini-primary-hover: #b53807;
+  --mini-bg: #fff8f5;
+  --mini-surface: #ffffff;
+  --mini-text: #24140e;
+  --mini-muted: #796157;
+  --mini-border: #f7dcd1;
+  --mini-badge: #fde8df;
+}
+
+/* 6. Tema Minimal */
+.laptop-display.theme-minimal {
+  --mini-primary: #171916;
+  --mini-primary-hover: #2b2f29;
+  --mini-bg: #fafaf8;
+  --mini-surface: #ffffff;
+  --mini-text: #171916;
+  --mini-muted: #7a7e76;
+  --mini-border: #e2e4dc;
+  --mini-badge: #f0f1eb;
+}
+
+.laptop-display {
+  background: var(--mini-bg);
+  color: var(--mini-text);
+}
+
+/* Header do Mini-Site */
+.mini-site-nav {
+  padding: 8px 12px;
+  background: var(--mini-surface);
+  border-bottom: 1px solid var(--mini-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mini-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--mini-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.logo-symbol {
+  color: var(--mini-primary);
+  font-size: 11px;
+}
+
+.mini-nav-links {
+  display: flex;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.mini-nav-link {
+  font-size: 9px;
+  color: var(--mini-muted);
+  white-space: nowrap;
+}
+
+.mini-nav-link.active {
+  color: var(--mini-primary);
+  font-weight: 600;
+}
+
+/* Hero do Mini-Site */
+.mini-hero {
+  padding: 18px 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.mini-badge {
+  font-size: 8px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--mini-badge);
+  color: var(--mini-primary);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.mini-hero-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 2px 0 0;
+  color: var(--mini-text);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mini-hero-subtitle {
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--mini-muted);
+  margin: 0;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mini-hero-actions {
+  margin-top: 6px;
+}
+
+.mini-cta-btn {
+  background: var(--mini-primary);
+  color: #ffffff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.laptop-display.theme-dark .mini-cta-btn {
+  color: #171916;
+}
+
+/* Seções Adicionais no Mini-Site */
+.mini-ecommerce-preview {
+  padding: 10px 12px 14px;
+  background: var(--mini-surface);
+  border-top: 1px solid var(--mini-border);
+}
+
+.mini-section-label {
+  font: 7px var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--mini-muted);
+  margin-bottom: 6px;
+}
+
+.mini-product-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.mini-product-card {
+  border: 1px solid var(--mini-border);
+  border-radius: 4px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--mini-bg);
+}
+
+.mini-prod-img {
+  height: 38px;
+  border-radius: 3px;
+  background: #e8eae1;
+}
+
+.mini-prod-img.prod-1 {
+  background: linear-gradient(135deg, #dbe4c8, #b8cb9d);
+}
+
+.mini-prod-img.prod-2 {
+  background: linear-gradient(135deg, #e4d7c8, #cbab9d);
+}
+
+.mini-prod-title {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--mini-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-prod-price {
+  font: 8px var(--mono);
+  color: var(--mini-primary);
+  font-weight: 700;
+}
+
+.mini-booking-preview {
+  padding: 8px 12px 12px;
+  background: var(--mini-surface);
+  border-top: 1px solid var(--mini-border);
+}
+
+.mini-booking-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--mini-border);
+  background: var(--mini-bg);
+  border-radius: 5px;
+  padding: 6px 8px;
+}
+
+.mini-cal-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--mini-badge);
+  color: var(--mini-primary);
+  display: grid;
+  place-items: center;
+}
+
+.mini-booking-info strong {
+  display: block;
+  font-size: 9px;
+  color: var(--mini-text);
+}
+
+.mini-booking-info small {
+  font-size: 7.5px;
+  color: var(--mini-muted);
+}
+
+.mini-whatsapp-float {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  background: #25d366;
+  color: #ffffff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Base Metálica do Laptop */
+.laptop-base {
+  height: 12px;
+  background: linear-gradient(180deg, #32382e 0%, #1e221b 100%);
+  border-radius: 0 0 14px 14px;
+  position: relative;
+  margin: 0 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.laptop-notch {
+  width: 48px;
+  height: 4px;
+  background: #141712;
+  border-radius: 0 0 4px 4px;
+  margin: 0 auto;
+}
+
+/* ------------------------------------------------------------
+   BLOCO DE NOTAS / CUSTOS ATÉ O MOMENTO
+   ------------------------------------------------------------ */
+.cost-notepad-card {
+  background: #fdfdf9;
+  border: 1px solid #dfded6;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(25, 30, 20, 0.04);
+  position: relative;
+}
+
+/* Detalhe superior de bloco/caderno */
+.cost-notepad-card::before {
+  content: '';
+  display: block;
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    #cfd4c2,
+    #cfd4c2 8px,
+    transparent 8px,
+    transparent 14px
+  );
+  border-bottom: 1px solid #dfded6;
+}
+
+.notepad-header {
+  padding: 14px 18px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed #e3e2d8;
+  background: #fafaf5;
+}
+
+.notepad-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notepad-icon {
+  color: #799222;
+}
+
+.notepad-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.notepad-items-badge {
+  font: 10px var(--mono);
+  color: #787d72;
+  background: #eef1e6;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.notepad-paper {
+  padding: 14px 18px 16px;
+  background: radial-gradient(#ecebe2 0.5px, transparent 0.5px) 0 0 / 12px 12px, #fdfdf9;
+}
+
+.notepad-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notepad-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.notepad-item-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #383e33;
+}
+
+.notepad-check-bullet {
+  color: #8fa727;
+  flex-shrink: 0;
+}
+
+.notepad-item-name {
+  line-height: 1.35;
+}
+
+.notepad-item-price {
+  font: 11px var(--mono);
+  font-weight: 600;
+  color: #252b21;
+  white-space: nowrap;
+}
+
+.notepad-divider {
+  height: 1px;
+  background: #dedcd2;
+  margin: 14px 0 12px;
+  border-top: 1px dashed #d2d0c2;
+}
+
+.notepad-total-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notepad-total-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.notepad-total-label span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.notepad-total-label small {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.notepad-total-amount {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #5c7414;
+  font-family: var(--mono);
+}
+
+/* ------------------------------------------------------------
+   RESPONSIVIDADE DO PREVIEW LATERAL
+   ------------------------------------------------------------ */
+@media (max-width: 1120px) {
+  .flow-workspace.has-preview-sidebar {
+    grid-template-columns: minmax(0, 1.4fr) minmax(290px, 1fr);
+    gap: 24px;
+    padding-inline: 20px;
+  }
+  .laptop-display {
+    min-height: 220px;
+  }
+}
+
+@media (max-width: 920px) {
+  .flow-workspace.has-preview-sidebar {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 32px;
+    padding: 24px 16px 60px;
+  }
+  .flow-preview-column {
+    position: static;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+
 

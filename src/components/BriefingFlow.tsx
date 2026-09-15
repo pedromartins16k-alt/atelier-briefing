@@ -10,6 +10,8 @@ import {
 } from '../data/briefingConfig';
 import BriefingReview from './BriefingReview';
 import ProfessionalResult from './ProfessionalResult';
+import ComputerPreview from './preview/ComputerPreview';
+import CostNotepad from './preview/CostNotepad';
 import { useAuth } from '../context/AuthContext';
 import {
   saveDraftLocally, loadDraftLocally, clearDraftLocally,
@@ -747,28 +749,39 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
         })}
       </nav>
 
-      <div className="flow-workspace">
-        <div className="flow-container">
-          {renderStepContent()}
+      <div className={`flow-workspace ${currentStep.id !== 'review' ? 'has-preview-sidebar' : ''}`}>
+        <div className="flow-form-column">
+          <div className="flow-container">
+            {renderStepContent()}
 
-          {validationError && (
-            <div className="validation-alert" role="alert">
-              <AlertCircle size={16} />
-              <span>{validationError}</span>
-            </div>
-          )}
+            {validationError && (
+              <div className="validation-alert" role="alert">
+                <AlertCircle size={16} />
+                <span>{validationError}</span>
+              </div>
+            )}
 
-          {currentStep.id !== 'review' && (
-            <footer className="flow-actions-footer">
-              <button type="button" className="btn-back" disabled={currentStepIndex === 0} onClick={handlePrev}>
-                <ArrowLeft size={16} /> Voltar
-              </button>
-              <button type="button" className="primary" onClick={handleNext}>
-                Continuar <ArrowRight size={16} />
-              </button>
-            </footer>
-          )}
+            {currentStep.id !== 'review' && (
+              <footer className="flow-actions-footer">
+                <button type="button" className="btn-back" disabled={currentStepIndex === 0} onClick={handlePrev}>
+                  <ArrowLeft size={16} /> Voltar
+                </button>
+                <button type="button" className="primary" onClick={handleNext}>
+                  Continuar <ArrowRight size={16} />
+                </button>
+              </footer>
+            )}
+          </div>
         </div>
+
+        {currentStep.id !== 'review' && (
+          <aside className="flow-preview-column">
+            <div className="preview-sticky-container">
+              <ComputerPreview data={data} />
+              <CostNotepad data={data} />
+            </div>
+          </aside>
+        )}
       </div>
     </main>
   );
