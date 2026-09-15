@@ -4,10 +4,10 @@ import { ArrowRight, CircleCheck, Compass, Sparkles } from 'lucide-react';
 type HomeProps = { onStart: () => void };
 
 const process = [
-  ['01', 'Você nos conta sobre sua marca', 'Conte sua história, posicionamento, público e objetivos. Quanto melhor entendermos sua marca, melhor será o projeto.'],
-  ['02', 'Definimos a experiência ideal', 'Transformamos seus objetivos em estrutura, funcionalidades e uma experiência digital clara e estratégica.'],
-  ['03', 'Componha seu investimento', 'Suas escolhas são transformadas em uma estimativa transparente de investimento, atualizada em tempo real.'],
-  ['04', 'Receba uma proposta estratégica', 'Ao final, você recebe um resumo completo do projeto e os próximos passos para tirar a ideia do papel.']
+  ['01', 'Você nos conta sobre sua marca', 'Conte sua história, posicionamento, público e diferenciais de forma guiada, sem nenhum jargão técnico.'],
+  ['02', 'Definimos requisitos e objetivos', 'Mapeamos páginas, recursos essenciais, público-alvo e a ação primordial (CTA) que trará resultados ao seu negócio.'],
+  ['03', 'Identificamos dependências e estilo', 'Alinhamos expectativas visuais, referências reais, materiais disponíveis e integrações necessárias.'],
+  ['04', 'Briefing pronto para a equipe', 'Ao final, você e o estúdio recebem um briefing estruturado, com sitemap sugerido e diagnóstico inteligente para iniciar o projeto.']
 ];
 
 export default function Home({ onStart }: HomeProps) {
@@ -32,7 +32,7 @@ export default function Home({ onStart }: HomeProps) {
   return <main className="home">
     <nav className="home-nav"><button className="brand home-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><span>✦</span> atelier<span>.</span></button><button className="ghost home-link" onClick={onStart}>Acessar briefing <ArrowRight size={16}/></button></nav>
     <section className="hero">
-      <div className="hero-copy"><div className="pill"><Sparkles size={14}/> BRIEFING INTELIGENTE</div><h1>Seu próximo site <i>começa aqui.</i></h1><p>Uma experiência guiada para transformar a ambição da sua marca em um projeto digital claro, estratégico e pronto para acontecer.</p><button className="primary big" onClick={onStart}>Começar meu projeto <ArrowRight className="button-arrow" size={18}/></button><div className="hero-meta"><span><CircleCheck size={17}/> 10–15 min</span><span><CircleCheck size={17}/> orçamento em tempo real</span></div><a className="scroll-cue" href="#processo">SCROLL PARA EXPLORAR <span>↓</span></a></div>
+      <div className="hero-copy"><div className="pill"><Sparkles size={14}/> CONSULTOR DIGITAL DE BRIEFING</div><h1>Seu próximo site <i>começa aqui.</i></h1><p>Uma experiência guiada para mapear as necessidades reais da sua empresa e transformar sua visão em um briefing completo, sem complicação ou termos técnicos.</p><button className="primary big" onClick={onStart}>Iniciar meu briefing <ArrowRight className="button-arrow" size={18}/></button><div className="hero-meta"><span><CircleCheck size={17}/> 10–15 min</span><span><CircleCheck size={17}/> Levantamento inteligente de requisitos</span></div><a className="scroll-cue" href="#processo">SCROLL PARA EXPLORAR <span>↓</span></a></div>
       <div className="orbital" onPointerMove={parallax} onPointerLeave={event => { event.currentTarget.style.setProperty('--px', '0px'); event.currentTarget.style.setProperty('--py', '0px'); }}><div className="orbit-line orbit-three"/><div className="solar-track track-briefing"><div className="orbit-label top">BRIEFING <b>01</b></div></div><div className="solar-track track-strategy"><div className="orbit-label right">ESTRATÉGIA <b>02</b></div></div><div className="solar-track track-design"><div className="orbit-label bottom">DESIGN <b>03</b></div></div><div className="orb-core"><Compass size={42}/><span>do insight<br/>ao impacto</span></div><div className="solar-track track-dot-one"><div className="orbit-dot d1"/></div><div className="solar-track track-dot-two"><div className="orbit-dot d2"/></div><div className="solar-track track-dot-three"><div className="orbit-dot d3"/></div></div>
     </section>
     <section id="processo" ref={processRef} className={'how '+(visible ? 'is-visible' : '')}><span className="eyebrow">O PROCESSO ATELIER</span><h2>Clareza em cada decisão.<br/><i>Excelência em cada detalhe.</i></h2><div className="how-grid">{process.map(([number,title,description], index)=><article className="process-card" style={{ '--delay': `${index * 90}ms` } as React.CSSProperties} key={number}><span>{number}</span><b>{title}</b><p>{description}</p></article>)}</div></section>
