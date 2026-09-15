@@ -1,7 +1,8 @@
-﻿import type { BriefingData } from '../types';
+import type { BriefingData } from '../types';
 import { analyzeBriefing } from './briefingIntelligence';
 
 export function generateBriefingMarkdown(data: BriefingData): string {
+
   const analysis = analyzeBriefing(data);
   const now = new Date().toLocaleDateString('pt-BR');
 
@@ -142,3 +143,7 @@ export function generateBriefingMarkdown(data: BriefingData): string {
 
   return md;
 }
+
+/** Alias conveniente para geração de markdown */
+export const generateMarkdown = generateBriefingMarkdown;
+

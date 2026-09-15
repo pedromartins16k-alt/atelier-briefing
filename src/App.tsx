@@ -1,1119 +1,259 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Plus,
-  Trash2,
-  AlertCircle,
-  Sparkles
-} from 'lucide-react';
-import type { BriefingData, ReferenceItem, CompetitorItem } from './types';
-import {
-  INITIAL_BRIEFING,
-  STEPS,
-  GOALS_OPTIONS,
-  STRUCTURE_PAGES_OPTIONS,
-  FEATURES_OPTIONS,
-  BRAND_PERCEPTIONS,
-  REFERENCE_REASONS,
-  MATERIALS_OPTIONS,
-  INTEGRATIONS_OPTIONS,
-  UNWANTED_OPTIONS,
-  INVESTMENT_RANGES
-} from './data/briefingConfig';
+import { useState, useEffect, useCallback } from 'react';
+import type { Screen, BriefingData } from './types';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Home from './components/Home';
-import BriefingReview from './components/BriefingReview';
+import LoginScreen from './components/auth/LoginScreen';
+import RegisterScreen from './components/auth/RegisterScreen';
+import ForgotScreen from './components/auth/ForgotScreen';
+import ClientHome from './components/client/ClientHome';
+import BriefingFlow from './components/BriefingFlow';
 import ProfessionalResult from './components/ProfessionalResult';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './components/admin/AdminDashboard';
+import ClientsList from './components/admin/ClientsList';
+import ClientProfile from './components/admin/ClientProfile';
+import ProjectsList from './components/admin/ProjectsList';
+import ProjectDetail from './components/admin/ProjectDetail';
+import { getClientBriefing } from './services/briefingService';
+import { INITIAL_BRIEFING } from './data/briefingConfig';
 
-export default function App() {
-  const [data, setData] = useState<BriefingData>(() => {
-    try {
-      const saved = localStorage.getItem('atelier_briefing_data');
-      return saved ? { ...INITIAL_BRIEFING, ...JSON.parse(saved) } : INITIAL_BRIEFING;
-    } catch {
-      return INITIAL_BRIEFING;
-    }
-  });
+function screenToPath(screen: Screen, clientId?: string, projectId?: string): string {
+  switch (screen) {
+    case 'home': return '/';
+    case 'login': return '/login';
+    case 'register': return '/register';
+    case 'forgot': return '/forgot';
+    case 'client-home': return '/briefing';
+    case 'flow': return '/briefing/preencher';
+    case 'success': return '/briefing/concluido';
+    case 'admin-dashboard': return '/admin';
+    case 'admin-clients': return '/admin/clientes';
+    case 'admin-client': return clientId ? `/admin/clientes/${clientId}` : '/admin/clientes';
+    case 'admin-projects': return '/admin/projetos';
+    case 'admin-project': return projectId ? `/admin/projetos/${projectId}` : '/admin/projetos';
+    default: return '/';
+  }
+}
 
-  const [screen, setScreen] = useState<'home' | 'flow' | 'success'>('home');
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [savedFeedback, setSavedFeedback] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [validationError, setValidationError] = useState('');
+function pathToScreen(path: string): { screen: Screen; id?: string } {
+  const clean = path.replace(/\/+$/, '') || '/';
+  if (clean === '/') return { screen: 'home' };
+  if (clean === '/login') return { screen: 'login' };
+  if (clean === '/register') return { screen: 'register' };
+  if (clean === '/forgot') return { screen: 'forgot' };
+  if (clean === '/briefing') return { screen: 'client-home' };
+  if (clean === '/briefing/preencher') return { screen: 'flow' };
+  if (clean === '/briefing/concluido') return { screen: 'success' };
+  if (clean === '/admin') return { screen: 'admin-dashboard' };
+  if (clean === '/admin/clientes') return { screen: 'admin-clients' };
+  if (clean.startsWith('/admin/clientes/')) return { screen: 'admin-client', id: clean.split('/')[3] };
+  if (clean === '/admin/projetos') return { screen: 'admin-projects' };
+  if (clean.startsWith('/admin/projetos/')) return { screen: 'admin-project', id: clean.split('/')[3] };
+  return { screen: 'home' };
+}
 
-  useEffect(() => {
-    localStorage.setItem('atelier_briefing_data', JSON.stringify(data));
-    setSavedFeedback(true);
-    const t = setTimeout(() => setSavedFeedback(false), 1400);
-    return () => clearTimeout(t);
-  }, [data]);
+function MainApp() {
+  const { user, profile, loading } = useAuth();
+  const [screen, setScreen] = useState<Screen>(() => pathToScreen(window.location.pathname).screen);
+  const [selectedClientId, setSelectedClientId] = useState<string>(() => pathToScreen(window.location.pathname).id || '');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(() => pathToScreen(window.location.pathname).id || '');
+  const [clientBriefingData, setClientBriefingData] = useState<BriefingData | null>(null);
 
-  const update = (patch: Partial<BriefingData>) => {
-    setData(prev => ({ ...prev, ...patch }));
-    setValidationError('');
-  };
-
-  const currentStep = STEPS[currentStepIndex];
-
-  const handleNext = () => {
-    if (currentStep.id === 'business') {
-      if (!data.companyName.trim() || !data.responsibleName.trim() || !data.contactEmail.trim()) {
-        setValidationError('Por favor, informe pelo menos o nome da empresa, seu nome e um e-mail para contato.');
-        return;
+  // Navegação consistente sincronizando URL
+  const navigate = useCallback((target: Screen, updateHistory = true) => {
+    setScreen(target);
+    if (updateHistory) {
+      const path = screenToPath(target, selectedClientId, selectedProjectId);
+      if (window.location.pathname !== path) {
+        window.history.pushState(null, '', path);
       }
     }
-    setValidationError('');
-    if (currentStepIndex < STEPS.length - 1) {
-      setCurrentStepIndex(prev => prev + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedClientId, selectedProjectId]);
 
-  const handlePrev = () => {
-    setValidationError('');
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(prev => prev - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const toggleArrayItem = (key: keyof BriefingData, item: string) => {
-    const list = (data[key] as string[]) || [];
-    if (list.includes(item)) {
-      update({ [key]: list.filter(x => x !== item) } as Partial<BriefingData>);
-    } else {
-      update({ [key]: [...list, item] } as Partial<BriefingData>);
-    }
-  };
-
-  const addReference = () => {
-    const newRef: ReferenceItem = {
-      id: crypto.randomUUID(),
-      url: '',
-      reasons: [],
-      notes: ''
+  // Listener para popstate (botões voltar/avançar do navegador)
+  useEffect(() => {
+    const handlePopState = () => {
+      const parsed = pathToScreen(window.location.pathname);
+      if (parsed.id) {
+        if (parsed.screen === 'admin-client') setSelectedClientId(parsed.id);
+        if (parsed.screen === 'admin-project') setSelectedProjectId(parsed.id);
+      }
+      setScreen(parsed.screen);
     };
-    update({ references: [...data.references, newRef] });
-  };
-
-  const updateReference = (id: string, patch: Partial<ReferenceItem>) => {
-    update({
-      references: data.references.map(r => (r.id === id ? { ...r, ...patch } : r))
-    });
-  };
-
-  const removeReference = (id: string) => {
-    update({ references: data.references.filter(r => r.id !== id) });
-  };
-
-  const addCompetitor = () => {
-    const newComp: CompetitorItem = {
-      id: crypto.randomUUID(),
-      nameOrUrl: '',
-      likes: '',
-      dislikes: ''
-    };
-    update({ competitors: [...data.competitors, newComp] });
-  };
-
-  const updateCompetitor = (id: string, patch: Partial<CompetitorItem>) => {
-    update({
-      competitors: data.competitors.map(c => (c.id === id ? { ...c, ...patch } : c))
-    });
-  };
-
-  const removeCompetitor = (id: string) => {
-    update({ competitors: data.competitors.filter(c => c.id !== id) });
-  };
-
-  const handleSubmitFinal = () => {
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setScreen('success');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 700);
-  };
-
-  const renderStepContent = () => {
-    switch (currentStep.id) {
-      case 'business':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">01 / CONTEXTO DA EMPRESA</div>
-            <h1>{currentStep.title}</h1>
-            <p>{currentStep.subtitle}</p>
-
-            <div className="field-grid two">
-              <label className="field-label">
-                <span>Nome da empresa ou marca *</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Atelier Criativo"
-                  value={data.companyName}
-                  onChange={e => update({ companyName: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Seu nome completo *</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Pedro Martins"
-                  value={data.responsibleName}
-                  onChange={e => update({ responsibleName: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>E-mail de contato *</span>
-                <input
-                  type="email"
-                  placeholder="seuemail@empresa.com"
-                  value={data.contactEmail}
-                  onChange={e => update({ contactEmail: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>WhatsApp ou telefone</span>
-                <input
-                  type="tel"
-                  placeholder="(11) 99999-9999"
-                  value={data.contactWhatsapp}
-                  onChange={e => update({ contactWhatsapp: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <div className="field-grid two">
-              <label className="field-label">
-                <span>Segmento ou ramo de atuação</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Arquitetura, Advocacia, Gastronomia..."
-                  value={data.businessSegment}
-                  onChange={e => update({ businessSegment: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Onde a empresa atende?</span>
-                <input
-                  type="text"
-                  placeholder="Ex: São Paulo e região / Todo o Brasil / Internacional"
-                  value={data.serviceLocation}
-                  onChange={e => update({ serviceLocation: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <label className="field-label">
-              <span>O que a empresa faz? (Em poucas palavras)</span>
-              <textarea
-                rows={3}
-                placeholder="Conte o que sua empresa faz e por que ela existe..."
-                value={data.businessDescription}
-                onChange={e => update({ businessDescription: e.target.value })}
-              />
-            </label>
-
-            <label className="field-label">
-              <span>Quais são os principais produtos ou serviços oferecidos?</span>
-              <textarea
-                rows={3}
-                placeholder="Liste ou descreva as soluções que você oferece aos seus clientes..."
-                value={data.productsAndServices}
-                onChange={e => update({ productsAndServices: e.target.value })}
-              />
-            </label>
-
-            <div className="field-grid two">
-              <label className="field-label">
-                <span>Qual é o principal diferencial da sua empresa?</span>
-                <input
-                  type="text"
-                  placeholder="O que faz um cliente escolher você e não o concorrente?"
-                  value={data.businessDifferentiator}
-                  onChange={e => update({ businessDifferentiator: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Há quanto tempo a empresa existe?</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Em fase de lançamento / 3 anos / Mais de 10 anos"
-                  value={data.businessAge}
-                  onChange={e => update({ businessAge: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <label className="field-label">
-              <span>Existe alguma informação importante que devemos conhecer sobre o negócio?</span>
-              <textarea
-                rows={2}
-                placeholder="Algum detalhe relevante sobre seu momento atual, história ou expansão..."
-                value={data.importantBusinessNotes}
-                onChange={e => update({ importantBusinessNotes: e.target.value })}
-              />
-            </label>
-          </div>
-        );
-
-      case 'goals':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">02 / PROPÓSITO</div>
-            <h1>{currentStep.title}</h1>
-            <p>Selecione os principais objetivos que o novo site deve cumprir:</p>
-
-            <div className="selection-cards-grid">
-              {GOALS_OPTIONS.map(goal => {
-                const selected = data.mainGoals.includes(goal);
-                return (
-                  <button
-                    type="button"
-                    key={goal}
-                    className={'card-choice ' + (selected ? 'is-selected' : '')}
-                    onClick={() => toggleArrayItem('mainGoals', goal)}
-                  >
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{goal}</strong>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="highlight-question-box">
-              <div className="box-icon"><Sparkles size={18} /></div>
-              <div>
-                <strong>Pergunta-chave para a conversão:</strong>
-                <p>Se uma pessoa visitar o site e fizer <b>apenas uma coisa</b>, o que você gostaria que ela fizesse?</p>
-                <input
-                  type="text"
-                  className="full-input-contrast"
-                  placeholder="Ex: Clicar no WhatsApp para pedir orçamento / Agendar uma reunião"
-                  value={data.singlePrimaryAction}
-                  onChange={e => update({ singlePrimaryAction: e.target.value })}
-                />
-                <span className="sub-helper">Essa resposta será tratada como a Ação Principal (CTA primordial) do projeto.</span>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'audience':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">03 / AUDIÊNCIA</div>
-            <h1>{currentStep.title}</h1>
-            <p>Quem você quer alcançar e encantar com a presença digital da sua marca?</p>
-
-            <div className="field-grid two">
-              <label className="field-label">
-                <span>Descrição do público principal</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Empreendedores, famílias em busca de imóvel, médicos..."
-                  value={data.targetAudience}
-                  onChange={e => update({ targetAudience: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Perfil de atendimento</span>
-                <select
-                  value={data.audienceType}
-                  onChange={e => update({ audienceType: e.target.value as any })}
-                >
-                  <option value="">Selecione o perfil</option>
-                  <option value="b2c">B2C — Consumidor final (Pessoa Física)</option>
-                  <option value="b2b">B2B — Empresas (Pessoa Jurídica)</option>
-                  <option value="both">Ambos (Pessoas Físicas e Empresas)</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="field-grid two">
-              <label className="field-label">
-                <span>Faixa etária aproximada</span>
-                <input
-                  type="text"
-                  placeholder="Ex: 25 a 45 anos / Todas as idades"
-                  value={data.ageRange}
-                  onChange={e => update({ ageRange: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Nível de poder aquisitivo (quando relevante)</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Médio / Alto padrão / Acessível"
-                  value={data.purchasingPower}
-                  onChange={e => update({ purchasingPower: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <label className="field-label">
-              <span>Características e hábitos importantes desse público</span>
-              <textarea
-                rows={2}
-                placeholder="Ex: Acessam principalmente pelo celular, valorizam agilidade, buscam exclusividade..."
-                value={data.audienceTraits}
-                onChange={e => update({ audienceTraits: e.target.value })}
-              />
-            </label>
-
-            <div className="restriction-input-box">
-              <label className="field-label">
-                <span>Existe algum público que você NÃO quer atrair?</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Pessoas fora do perfil de ticket ou sem interesse no serviço..."
-                  value={data.excludedAudience}
-                  onChange={e => update({ excludedAudience: e.target.value })}
-                />
-              </label>
-            </div>
-          </div>
-        );
-
-      case 'structure':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">04 / ARQUITETURA</div>
-            <h1>{currentStep.title}</h1>
-            <p>Quais páginas e seções você gostaria de ter no site? Selecione as que se aplicam:</p>
-
-            <div className="pills-grid-large">
-              {STRUCTURE_PAGES_OPTIONS.map(page => {
-                const selected = data.selectedPages.includes(page);
-                return (
-                  <button
-                    type="button"
-                    key={page}
-                    className={'pill-toggle-btn ' + (selected ? 'is-active' : '')}
-                    onClick={() => toggleArrayItem('selectedPages', page)}
-                  >
-                    {selected && <Check size={14} />}
-                    <span>{page}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="box-note-indispensable">
-              <label className="field-label">
-                <span>Existe alguma página ou seção que você considera indispensável?</span>
-                <textarea
-                  rows={2}
-                  placeholder="Ex: Uma seção destacando os depoimentos de clientes e certificações internacionais..."
-                  value={data.indispensablePageOrSection}
-                  onChange={e => update({ indispensablePageOrSection: e.target.value })}
-                />
-              </label>
-            </div>
-          </div>
-        );
-
-      case 'features':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">05 / RECURSOS & INTERAÇÕES</div>
-            <h1>{currentStep.title}</h1>
-            <p>Selecione tudo o que você gostaria que o visitante pudesse fazer no site:</p>
-
-            <div className="selection-cards-grid">
-              {FEATURES_OPTIONS.map(feat => {
-                const selected = data.selectedFeatures.includes(feat);
-                return (
-                  <button
-                    type="button"
-                    key={feat}
-                    className={'card-choice ' + (selected ? 'is-selected' : '')}
-                    onClick={() => toggleArrayItem('selectedFeatures', feat)}
-                  >
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{feat}</strong>
-                  </button>
-                );
-              })}
-            </div>
-
-            {data.selectedFeatures.includes('Comprar produtos') && (
-              <div className="conditional-group">
-                <div className="conditional-title">
-                  <Sparkles size={16} /> Detalhes sobre Venda Online / Loja
-                </div>
-                <div className="field-grid two">
-                  <label className="field-label">
-                    <span>Quantos produtos aproximadamente terá a loja?</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Até 10 itens / 50 a 100 itens / Mais de 200"
-                      value={data.featureConditionals.ecommerceProductsCount || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            ecommerceProductsCount: e.target.value
-                          }
-                        })
-                      }
-                    />
-                  </label>
-
-                  <label className="field-label">
-                    <span>Já possui sistema ou gateway de pagamento?</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Sim (Stripe, Mercado Pago) / Ainda não tenho"
-                      value={data.featureConditionals.ecommerceHasPaymentGateway || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            ecommerceHasPaymentGateway: e.target.value
-                          }
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-
-                <div className="field-grid two">
-                  <label className="field-label">
-                    <span>Já vende pela internet atualmente?</span>
-                    <select
-                      value={data.featureConditionals.ecommerceCurrentlySellsOnline || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            ecommerceCurrentlySellsOnline: e.target.value
-                          }
-                        })
-                      }
-                    >
-                      <option value="">Selecione uma opção</option>
-                      <option value="Sim">Sim, já possuo vendas online ativas</option>
-                      <option value="Não">Não, este será o primeiro canal digital</option>
-                    </select>
-                  </label>
-
-                  <label className="field-label">
-                    <span>Plataforma que já utiliza (se houver)</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Shopify, WooCommerce, Nuvemshop ou nenhuma"
-                      value={data.featureConditionals.ecommerceCurrentPlatform || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            ecommerceCurrentPlatform: e.target.value
-                          }
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {data.selectedFeatures.includes('Agendar horário') && (
-              <div className="conditional-group">
-                <div className="conditional-title">
-                  <Sparkles size={16} /> Detalhes sobre Agendamentos
-                </div>
-                <div className="field-grid two">
-                  <label className="field-label">
-                    <span>Qual tipo de serviço será agendado?</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Consulta, reunião de consultoria, avaliação..."
-                      value={data.featureConditionals.bookingServiceType || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            bookingServiceType: e.target.value
-                          }
-                        })
-                      }
-                    />
-                  </label>
-
-                  <label className="field-label">
-                    <span>Quantos profissionais estarão na agenda?</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: 1 profissional / Equipe de 5"
-                      value={data.featureConditionals.bookingProfessionalsCount || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            bookingProfessionalsCount: e.target.value
-                          }
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-
-                <div className="field-grid two">
-                  <label className="field-label">
-                    <span>O agendamento precisa mostrar horários disponíveis?</span>
-                    <select
-                      value={data.featureConditionals.bookingShowAvailableSlots || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            bookingShowAvailableSlots: e.target.value
-                          }
-                        })
-                      }
-                    >
-                      <option value="">Selecione</option>
-                      <option value="Sim">Sim, exibir calendário em tempo real</option>
-                      <option value="Apenas solicitação">Não, apenas solicitação de data/horário</option>
-                    </select>
-                  </label>
-
-                  <label className="field-label">
-                    <span>Já utiliza alguma ferramenta de agendamento?</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Calendly, Google Calendar, ferramenta própria..."
-                      value={data.featureConditionals.bookingCurrentTool || ''}
-                      onChange={e =>
-                        update({
-                          featureConditionals: {
-                            ...data.featureConditionals,
-                            bookingCurrentTool: e.target.value
-                          }
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {data.selectedFeatures.includes('Fazer login') && (
-              <div className="conditional-group">
-                <div className="conditional-title">
-                  <Sparkles size={16} /> Área de Membros ou Acesso Restrito
-                </div>
-                <label className="field-label">
-                  <span>Qual será a finalidade do login dos clientes?</span>
-                  <input
-                    type="text"
-                    placeholder="Ex: Acesso a relatórios de clientes, materiais exclusivos, área de membros..."
-                    value={data.featureConditionals.loginPurpose || ''}
-                    onChange={e =>
-                      update({
-                        featureConditionals: {
-                          ...data.featureConditionals,
-                          loginPurpose: e.target.value
-                        }
-                      })
-                    }
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'identity':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">06 / ATMOSFERA VISUAL</div>
-            <h1>{currentStep.title}</h1>
-            <p>Como você gostaria que sua marca fosse percebida visualmente?</p>
-
-            <div className="perceptions-grid">
-              {BRAND_PERCEPTIONS.map(item => {
-                const selected = data.brandPerceptions.includes(item.id);
-                return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={'perception-card ' + (selected ? 'is-selected' : '')}
-                    onClick={() => toggleArrayItem('brandPerceptions', item.id)}
-                  >
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{item.id}</strong>
-                    <small>{item.desc}</small>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="field-grid two" style={{ marginTop: '28px' }}>
-              <label className="field-label">
-                <span>Existe alguma cor que representa sua marca?</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Tons de oliva, dourado e off-white..."
-                  value={data.brandColors}
-                  onChange={e => update({ brandColors: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Existe alguma cor que você NÃO quer utilizar?</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Vermelho, amarelo berrante, tons fluorescentes..."
-                  value={data.colorsToAvoid}
-                  onChange={e => update({ colorsToAvoid: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <div className="identity-status-box">
-              <span>Você já possui identidade visual definida?</span>
-              <div className="radio-pills">
-                {[
-                  { id: 'complete', label: 'Sim, completa (manual + vetor)' },
-                  { id: 'logo_only', label: 'Tenho apenas o logotipo' },
-                  { id: 'some_materials', label: 'Tenho alguns materiais pontuais' },
-                  { id: 'none', label: 'Ainda não possuo identidade visual' }
-                ].map(opt => (
-                  <button
-                    type="button"
-                    key={opt.id}
-                    className={'pill-radio ' + (data.identityStatus === opt.id ? 'is-active' : '')}
-                    onClick={() => update({ identityStatus: opt.id as any })}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'references':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">07 / BENCHMARK</div>
-            <h1>{currentStep.title}</h1>
-            <p>Compartilhe sites que você admira e explique exatamente o que você gostou em cada um deles:</p>
-
-            <div className="references-manager">
-              {data.references.map((ref, index) => (
-                <div key={ref.id} className="reference-card">
-                  <div className="ref-head">
-                    <span>REFERÊNCIA 0{index + 1}</span>
-                    <button type="button" className="del-btn" onClick={() => removeReference(ref.id)}>
-                      <Trash2 size={14} /> Remover
-                    </button>
-                  </div>
-
-                  <label className="field-label">
-                    <span>Link do site (URL)</span>
-                    <input
-                      type="url"
-                      placeholder="https://exemplo.com"
-                      value={ref.url}
-                      onChange={e => updateReference(ref.id, { url: e.target.value })}
-                    />
-                  </label>
-
-                  <div className="ref-reasons">
-                    <span>O que você gostou nesse site?</span>
-                    <div className="pills-reasons">
-                      {REFERENCE_REASONS.map(reason => {
-                        const isChosen = ref.reasons.includes(reason);
-                        return (
-                          <button
-                            type="button"
-                            key={reason}
-                            className={'mini-pill ' + (isChosen ? 'active' : '')}
-                            onClick={() => {
-                              const newReasons = isChosen
-                                ? ref.reasons.filter(r => r !== reason)
-                                : [...ref.reasons, reason];
-                              updateReference(ref.id, { reasons: newReasons });
-                            }}
-                          >
-                            {isChosen && <Check size={12} />} {reason}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <label className="field-label" style={{ marginTop: '12px' }}>
-                    <span>Observações sobre essa referência (opcional)</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Gostei do formato como a galeria abre os projetos na tela..."
-                      value={ref.notes}
-                      onChange={e => updateReference(ref.id, { notes: e.target.value })}
-                    />
-                  </label>
-                </div>
-              ))}
-
-              <button type="button" className="add-btn" onClick={addReference}>
-                <Plus size={16} /> Adicionar site de referência
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'materials':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">08 / MATERIAIS & ATIVOS</div>
-            <h1>{currentStep.title}</h1>
-            <p>Quais materiais a sua empresa já possui prontos para o projeto?</p>
-
-            <div className="selection-cards-grid">
-              {MATERIALS_OPTIONS.map(mat => {
-                const selected = data.existingMaterials.includes(mat);
-                return (
-                  <button
-                    type="button"
-                    key={mat}
-                    className={'card-choice ' + (selected ? 'is-selected' : '')}
-                    onClick={() => toggleArrayItem('existingMaterials', mat)}
-                  >
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{mat}</strong>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="content-owner-box">
-              <span>Quem ficará responsável por produzir o material ou redação que estiver faltando?</span>
-              <div className="radio-pills">
-                {[
-                  { id: 'client', label: 'Nossa empresa fornecerá todo o conteúdo' },
-                  { id: 'agency', label: 'Gostaria que o estúdio/desenvolvedor cuidasse' },
-                  { id: 'contractor', label: 'Contrataremos um profissional externo' },
-                  { id: 'undecided', label: 'Ainda não definimos essa etapa' }
-                ].map(opt => (
-                  <button
-                    type="button"
-                    key={opt.id}
-                    className={'pill-radio ' + (data.missingContentOwner === opt.id ? 'is-active' : '')}
-                    onClick={() => update({ missingContentOwner: opt.id as any })}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'integrations':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">09 / CONEXÕES</div>
-            <h1>{currentStep.title}</h1>
-            <p>O site precisa se comunicar com alguma ferramenta que sua operação já utiliza?</p>
-
-            <div className="selection-cards-grid">
-              {INTEGRATIONS_OPTIONS.map(item => {
-                const selected = data.integrations.includes(item);
-                return (
-                  <button
-                    type="button"
-                    key={item}
-                    className={'card-choice ' + (selected ? 'is-selected' : '')}
-                    onClick={() => toggleArrayItem('integrations', item)}
-                  >
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{item}</strong>
-                  </button>
-                );
-              })}
-            </div>
-
-            <label className="field-label" style={{ marginTop: '22px' }}>
-              <span>Deseja especificar nomes de softwares ou detalhes de integrações?</span>
-              <textarea
-                rows={2}
-                placeholder="Ex: Usamos o RD Station para marketing e o Pipedrive como CRM..."
-                value={data.integrationDetails}
-                onChange={e => update({ integrationDetails: e.target.value })}
-              />
-            </label>
-          </div>
-        );
-
-      case 'competitors':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">10 / BENCHMARKING</div>
-            <h1>{currentStep.title}</h1>
-            <p>Quais são os principais concorrentes da sua empresa e o que você repara neles?</p>
-
-            <div className="references-manager">
-              {data.competitors.map((comp, index) => (
-                <div key={comp.id} className="reference-card">
-                  <div className="ref-head">
-                    <span>CONCORRENTE 0{index + 1}</span>
-                    <button type="button" className="del-btn" onClick={() => removeCompetitor(comp.id)}>
-                      <Trash2 size={14} /> Remover
-                    </button>
-                  </div>
-
-                  <label className="field-label">
-                    <span>Nome ou site do concorrente</span>
-                    <input
-                      type="text"
-                      placeholder="Ex: Empresa X (www.empresax.com)"
-                      value={comp.nameOrUrl}
-                      onChange={e => updateCompetitor(comp.id, { nameOrUrl: e.target.value })}
-                    />
-                  </label>
-
-                  <div className="field-grid two">
-                    <label className="field-label">
-                      <span>O que você GOSTA no site dele?</span>
-                      <input
-                        type="text"
-                        placeholder="Ex: Apresentação clara dos planos..."
-                        value={comp.likes}
-                        onChange={e => updateCompetitor(comp.id, { likes: e.target.value })}
-                      />
-                    </label>
-
-                    <label className="field-label">
-                      <span>O que você NÃO GOSTA / quer fazer melhor?</span>
-                      <input
-                        type="text"
-                        placeholder="Ex: É muito confuso para entrar em contato..."
-                        value={comp.dislikes}
-                        onChange={e => updateCompetitor(comp.id, { dislikes: e.target.value })}
-                      />
-                    </label>
-                  </div>
-                </div>
-              ))}
-
-              <button type="button" className="add-btn" onClick={addCompetitor}>
-                <Plus size={16} /> Adicionar concorrente
-              </button>
-            </div>
-          </div>
-        );
-
-      case 'restrictions':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">11 / LINHAS VERMELHAS</div>
-            <h1>{currentStep.title}</h1>
-            <p>O que você definitivamente <b>NÃO</b> gostaria de ver no seu projeto?</p>
-
-            <div className="selection-cards-grid">
-              {UNWANTED_OPTIONS.map(item => {
-                const selected = data.unwantedElements.includes(item);
-                return (
-                  <button
-                    type="button"
-                    key={item}
-                    className={'card-choice danger-mode ' + (selected ? 'is-selected' : '')}
-                    onClick={() => toggleArrayItem('unwantedElements', item)}
-                  >
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{item}</strong>
-                  </button>
-                );
-              })}
-            </div>
-
-            <label className="field-label" style={{ marginTop: '22px' }}>
-              <span>Existe algum estilo visual ou exemplo de site que você rejeita?</span>
-              <textarea
-                rows={2}
-                placeholder="Ex: Sites muito escuros, botões piscantes ou tipografias difíceis de ler..."
-                value={data.dislikedStylesOrSites}
-                onChange={e => update({ dislikedStylesOrSites: e.target.value })}
-              />
-            </label>
-          </div>
-        );
-
-      case 'timeline':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">12 / PLANEJAMENTO</div>
-            <h1>{currentStep.title}</h1>
-            <p>Alinhe os horizontes de prazo e a faixa de investimento planejada:</p>
-
-            <div className="field-grid two">
-              <label className="field-label">
-                <span>Existe alguma data importante para o lançamento?</span>
-                <input
-                  type="text"
-                  placeholder="Ex: Até o final do mês que vem / Sem data limite"
-                  value={data.targetLaunchDate}
-                  onChange={e => update({ targetLaunchDate: e.target.value })}
-                />
-              </label>
-
-              <label className="field-label">
-                <span>Faixa de investimento estimada para o projeto</span>
-                <select
-                  value={data.investmentRange}
-                  onChange={e => update({ investmentRange: e.target.value })}
-                >
-                  <option value="">Selecione uma faixa estimada</option>
-                  {INVESTMENT_RANGES.map(range => (
-                    <option key={range} value={range}>{range}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-        );
-
-      case 'notes':
-        return (
-          <div className="step-body">
-            <div className="eyebrow">13 / VISÃO ABERTA</div>
-            <h1>{currentStep.title}</h1>
-            <p>Existe alguma coisa que você imaginou para o seu site e ainda não conseguimos perguntar?</p>
-
-            <label className="field-label">
-              <textarea
-                rows={5}
-                placeholder="Fique à vontade para escrever sobre qualquer detalhe, ideia, sensação ou prioridade adicional..."
-                value={data.finalObservations}
-                onChange={e => update({ finalObservations: e.target.value })}
-              />
-            </label>
-          </div>
-        );
-
-      case 'review':
-        return (
-          <BriefingReview
-            data={data}
-            onGoToStep={idx => {
-              setCurrentStepIndex(idx);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onSubmit={handleSubmitFinal}
-            submitting={submitting}
-          />
-        );
-
-      default:
-        return null;
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Proteção de rotas & Redirecionamentos automáticos baseados em sessão e role
+  useEffect(() => {
+    if (loading) return;
+
+    const currentPath = window.location.pathname;
+    const isAuthRoute = ['/login', '/register', '/forgot'].includes(currentPath);
+    const isAdminRoute = currentPath.startsWith('/admin') || screen.startsWith('admin-');
+    const isClientRoute = currentPath.startsWith('/briefing') || ['client-home', 'flow', 'success'].includes(screen);
+
+    // 1. Não autenticado tentando acessar rotas protegidas -> redireciona para login
+    if (!user) {
+      if (isAdminRoute || isClientRoute) {
+        navigate('login');
+      }
+      return;
     }
-  };
 
+    // 2. Autenticado mas sem perfil ainda carregado -> aguardar
+    if (!profile) return;
+
+    // 3. Usuário logado em página de login/registro
+    if (isAuthRoute) {
+      if (profile.role === 'admin') {
+        navigate('admin-dashboard');
+      } else {
+        navigate('client-home');
+      }
+      return;
+    }
+
+    // 4. Role = client tentando acessar /admin -> bloqueia e vai para /briefing
+    if (profile.role === 'client' && isAdminRoute) {
+      navigate('client-home');
+      return;
+    }
+
+    // 5. Role = admin tentando acessar /briefing como cliente -> redireciona para o painel admin
+    if (profile.role === 'admin' && (isClientRoute && currentPath === '/briefing')) {
+      navigate('admin-dashboard');
+      return;
+    }
+  }, [user, profile, loading, screen, navigate]);
+
+  // Carregar dados de briefing do cliente quando em modo 'success' / visualização
+  useEffect(() => {
+    if (screen === 'success' && profile && !clientBriefingData) {
+      getClientBriefing(profile.id).then(res => {
+        if (res?.briefing?.responses) {
+          setClientBriefingData(res.briefing.responses);
+        }
+      }).catch(() => {});
+    }
+  }, [screen, profile, clientBriefingData]);
+
+  if (loading) {
+    return (
+      <div className="global-loading-screen">
+        <div className="loading-spinner" />
+        <span>Carregando Atelier…</span>
+      </div>
+    );
+  }
+
+  // --- Rotas Públicas & Auth ---
   if (screen === 'home') {
-    return <Home onStart={() => setScreen('flow')} />;
+    return (
+      <Home
+        onStart={() => {
+          if (!user) {
+            navigate('login');
+          } else if (profile?.role === 'admin') {
+            navigate('admin-dashboard');
+          } else {
+            navigate('client-home');
+          }
+        }}
+        onNavigate={navigate}
+      />
+    );
+  }
+
+  if (screen === 'login') {
+    return <LoginScreen onNavigate={navigate} />;
+  }
+
+  if (screen === 'register') {
+    return <RegisterScreen onNavigate={navigate} />;
+  }
+
+  if (screen === 'forgot') {
+    return <ForgotScreen onNavigate={navigate} />;
+  }
+
+  // --- Rotas do Cliente ---
+  if (screen === 'client-home') {
+    return <ClientHome onNavigate={navigate} />;
+  }
+
+  if (screen === 'flow') {
+    return (
+      <BriefingFlow
+        onNavigate={navigate}
+        setProjectId={id => setSelectedProjectId(id)}
+      />
+    );
   }
 
   if (screen === 'success') {
     return (
       <ProfessionalResult
-        data={data}
-        onBackToEdit={() => {
-          setScreen('flow');
-          setCurrentStepIndex(STEPS.length - 1);
-        }}
+        data={clientBriefingData || INITIAL_BRIEFING}
+        onBackToEdit={() => navigate('flow')}
       />
     );
   }
 
+  // --- Rotas do Administrador ---
+  if (profile?.role === 'admin' && screen.startsWith('admin-')) {
+    return (
+      <AdminLayout screen={screen} onNavigate={navigate}>
+        {screen === 'admin-dashboard' && (
+          <AdminDashboard
+            onNavigate={navigate}
+            setSelectedProjectId={setSelectedProjectId}
+            setSelectedClientId={setSelectedClientId}
+          />
+        )}
+        {screen === 'admin-clients' && (
+          <ClientsList
+            onNavigate={navigate}
+            setSelectedClientId={setSelectedClientId}
+          />
+        )}
+        {screen === 'admin-client' && (
+          <ClientProfile
+            clientId={selectedClientId}
+            onNavigate={navigate}
+            setSelectedProjectId={setSelectedProjectId}
+          />
+        )}
+        {screen === 'admin-projects' && (
+          <ProjectsList
+            onNavigate={navigate}
+            setSelectedProjectId={setSelectedProjectId}
+          />
+        )}
+        {screen === 'admin-project' && (
+          <ProjectDetail
+            projectId={selectedProjectId}
+            onNavigate={navigate}
+          />
+        )}
+      </AdminLayout>
+    );
+  }
+
+  // Fallback seguro
   return (
-    <main className="briefing-app">
-      <header className="flow-topbar">
-        <button className="brand flow-brand" onClick={() => setScreen('home')}>
-          <span>✦</span> atelier<span>.</span>
-        </button>
-
-        <div className="flow-progress">
-          <span className="step-count">
-            {String(currentStepIndex + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}
-          </span>
-          <div className="progress-bar-rail">
-            <div
-              className="progress-bar-fill"
-              style={{ width: ((currentStepIndex + 1) / STEPS.length) * 100 + '%' }}
-            />
-          </div>
-          <strong className="step-label-name">{currentStep.label}</strong>
-        </div>
-
-        <span className="auto-save-indicator">
-          {savedFeedback ? 'Salvo automaticamente' : 'Auto-salvamento ativo'}
-        </span>
-      </header>
-
-      <nav className="stepper-nav" aria-label="Navegação entre etapas">
-        {STEPS.map((s, i) => {
-          const isDone = i < currentStepIndex;
-          const isCurrent = i === currentStepIndex;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              className={'step-btn ' + (isCurrent ? 'is-current' : isDone ? 'is-done' : '')}
-              onClick={() => {
-                setCurrentStepIndex(i);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            >
-              <span className="step-number">
-                {isDone ? <Check size={12} /> : String(i + 1).padStart(2, '0')}
-              </span>
-              <span className="step-text">{s.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="flow-workspace">
-        <div className="flow-container">
-          {renderStepContent()}
-
-          {validationError && (
-            <div className="validation-alert" role="alert">
-              <AlertCircle size={16} />
-              <span>{validationError}</span>
-            </div>
-          )}
-
-          {currentStep.id !== 'review' && (
-            <footer className="flow-actions-footer">
-              <button
-                type="button"
-                className="btn-back"
-                disabled={currentStepIndex === 0}
-                onClick={handlePrev}
-              >
-                <ArrowLeft size={16} /> Voltar
-              </button>
-
-              <button type="button" className="primary" onClick={handleNext}>
-                Continuar <ArrowRight size={16} />
-              </button>
-            </footer>
-          )}
-        </div>
-      </div>
-    </main>
+    <Home
+      onStart={() => navigate('login')}
+      onNavigate={navigate}
+    />
   );
 }
 
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
+  );
+}

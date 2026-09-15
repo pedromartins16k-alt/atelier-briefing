@@ -1,4 +1,4 @@
-﻿import type { BriefingData, AttentionPoint } from '../types';
+import type { BriefingData, AttentionPoint } from '../types';
 
 export function analyzeBriefing(data: BriefingData): {
   executiveSummary: string;
@@ -117,3 +117,19 @@ export function analyzeBriefing(data: BriefingData): {
     attentionPoints
   };
 }
+
+/** Helper: retorna apenas os pontos de atenção (diagnóstico) */
+export function generateDiagnosis(data: BriefingData): AttentionPoint[] {
+  return analyzeBriefing(data).attentionPoints;
+}
+
+/** Helper: retorna apenas o resumo executivo */
+export function generateExecutiveSummary(data: BriefingData): string {
+  return analyzeBriefing(data).executiveSummary;
+}
+
+/** Helper: retorna apenas o sitemap sugerido */
+export function generateSitemap(data: BriefingData): string[] {
+  return analyzeBriefing(data).suggestedSitemap;
+}
+

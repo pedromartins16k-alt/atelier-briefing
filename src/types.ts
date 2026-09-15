@@ -1,9 +1,107 @@
-﻿export type ReferenceItem = {
+// ============================================================
+// Tipos da Plataforma (Auth, Projetos, Briefings)
+// ============================================================
+
+export type UserRole = 'admin' | 'client';
+
+export type UserProfile = {
+  id: string;
+  name: string;
+  role: UserRole;
+  phone?: string;
+  company?: string;
+  segment?: string;
+  location?: string;
+  website?: string;
+  instagram?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectStatus =
+  | 'briefing_received'
+  | 'in_analysis'
+  | 'waiting_client'
+  | 'approved'
+  | 'in_development'
+  | 'in_review'
+  | 'completed';
+
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  briefing_received: 'Briefing recebido',
+  in_analysis: 'Em análise',
+  waiting_client: 'Aguardando cliente',
+  approved: 'Aprovado',
+  in_development: 'Em desenvolvimento',
+  in_review: 'Em revisão',
+  completed: 'Concluído'
+};
+
+export type Project = {
+  id: string;
+  client_id: string;
+  name: string;
+  type?: string;
+  status: ProjectStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectBriefing = {
+  id: string;
+  project_id: string;
+  responses: BriefingData;
+  executive_summary?: string;
+  diagnosis?: AttentionPoint[];
+  sitemap?: string[];
+  primary_cta?: string;
+  submitted_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InternalNote = {
+  id: string;
+  project_id: string;
+  admin_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectHistoryEvent = {
+  id: string;
+  project_id: string;
+  event_type: string;
+  description: string;
+  created_at: string;
+};
+
+export type Screen =
+  | 'home'
+  | 'login'
+  | 'register'
+  | 'forgot'
+  | 'client-home'
+  | 'flow'
+  | 'success'
+  | 'admin-dashboard'
+  | 'admin-clients'
+  | 'admin-client'
+  | 'admin-projects'
+  | 'admin-project';
+
+// ============================================================
+// Tipos do Briefing
+// ============================================================
+
+export type ReferenceItem = {
   id: string;
   url: string;
   reasons: string[];
   notes: string;
 };
+
 
 export type CompetitorItem = {
   id: string;
