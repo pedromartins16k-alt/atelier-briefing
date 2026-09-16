@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Check, AlertCircle } from 'lucide-react';
 import type { DynamicFeature, DynamicCategory } from '../../types';
 
@@ -11,7 +11,7 @@ interface FeatureModalProps {
   onClose: () => void;
 }
 
-const COMMON_FEATURE_EMOJIS = ['âœ‰ï¸', 'ðŸ’¬', 'ðŸ›ï¸', 'ðŸ“…', 'ðŸ”’', 'ðŸ–¼ï¸', 'ðŸ“°', 'â­', 'ðŸ§®', 'ðŸ“¬', 'ðŸš€', 'âš¡', 'ðŸ“Š', 'ðŸ”—'];
+const COMMON_FEATURE_EMOJIS = ['✉️', '💬', '🛍️', '📅', '🔒', '🖼️', '📰', '⭐', '🧮', '📬', '🚀', '⚡', '📊', '🔗'];
 
 export default function FeatureModal({
   isOpen,
@@ -30,7 +30,7 @@ export default function FeatureModal({
   const [categoryId, setCategoryId] = useState('');
   const [price, setPrice] = useState(0);
   const [priceLabel, setPriceLabel] = useState('Incluso');
-  const [icon, setIcon] = useState('âœ¨');
+  const [icon, setIcon] = useState('✨');
   const [order, setOrder] = useState(1);
   const [enabled, setEnabled] = useState(true);
   const [conditionalRuleId, setConditionalRuleId] = useState<string>('');
@@ -45,7 +45,7 @@ export default function FeatureModal({
       setCategoryId(feature.categoryId || (categories[0]?.id || ''));
       setPrice(feature.price ?? 0);
       setPriceLabel(feature.priceLabel || (feature.price > 0 ? `+ R$ ${feature.price}` : 'Incluso'));
-      setIcon(feature.icon || 'âœ¨');
+      setIcon(feature.icon || '✨');
       setOrder(feature.order || 1);
       setEnabled(feature.enabled ?? true);
       setConditionalRuleId(feature.conditionalRuleId || '');
@@ -57,7 +57,7 @@ export default function FeatureModal({
       setCategoryId(categories[0]?.id || '');
       setPrice(0);
       setPriceLabel('Incluso');
-      setIcon('âœ¨');
+      setIcon('✨');
       setOrder(existingFeatures.length + 1);
       setEnabled(true);
       setConditionalRuleId('');
@@ -94,28 +94,28 @@ export default function FeatureModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('O nome da funcionalidade Ã© obrigatÃ³rio.');
+      setError('O nome da funcionalidade é obrigatório.');
       return;
     }
     if (!label.trim()) {
-      setError('O label exibido ao cliente Ã© obrigatÃ³rio.');
+      setError('O label exibido ao cliente é obrigatório.');
       return;
     }
     if (!categoryId) {
-      setError('Selecione uma categoria vÃ¡lida para a funcionalidade.');
+      setError('Selecione uma categoria válida para a funcionalidade.');
       return;
     }
 
     const cleanSlug = slug.trim() || name.trim();
     if (!cleanSlug) {
-      setError('Identificador interno/slug invÃ¡lido.');
+      setError('Identificador interno/slug inválido.');
       return;
     }
 
     // Checar duplicidade de slug/id
     const isDuplicate = existingFeatures.some(f => f.id === cleanSlug && (!isEditing || f.id !== feature.id));
     if (isDuplicate) {
-      setError('JÃ¡ existe uma funcionalidade com este identificador/slug.');
+      setError('Já existe uma funcionalidade com este identificador/slug.');
       return;
     }
 
@@ -127,7 +127,7 @@ export default function FeatureModal({
       categoryId,
       price: Number(price) || 0,
       priceLabel: priceLabel.trim() || (price === 0 ? 'Incluso' : `+ R$ ${price}`),
-      icon: icon.trim() || 'âœ¨',
+      icon: icon.trim() || '✨',
       order: Number(order) || 1,
       enabled,
       conditionalRuleId: conditionalRuleId || undefined
@@ -136,7 +136,7 @@ export default function FeatureModal({
   };
 
   return (
-    <div className="config-modal-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="config-modal-overlay" role="dialog" aria-modal="true">
       <div className="config-modal-card">
         <div className="config-modal-header">
           <div className="config-modal-icon-badge">
@@ -144,14 +144,14 @@ export default function FeatureModal({
           </div>
           <div className="config-modal-title-group">
             <h3>{isEditing ? 'Editar Funcionalidade' : 'Nova Funcionalidade'}</h3>
-            <p>Configure regras, precificaÃ§Ã£o e exibiÃ§Ã£o da funcionalidade no briefing.</p>
+            <p>Configure regras, precificação e exibição da funcionalidade no briefing.</p>
           </div>
-          <button type="button" className="config-modal-close" onClick={onClose} title="Fechar">
-            <X size={18} />
+          <button type="button" className="config-modal-close" onClick={onClose}>
+            <X size={16} />
           </button>
         </div>
 
-        <form id="feature-modal-form" onSubmit={handleSubmit} className="config-modal-form">
+        <form onSubmit={handleSubmit} className="config-modal-form">
           {error && (
             <div className="config-modal-error">
               <AlertCircle size={15} />
@@ -215,7 +215,7 @@ export default function FeatureModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>PreÃ§o Adicional (R$)</label>
+              <label>Preço Adicional (R$)</label>
               <input
                 type="number"
                 min={0}
@@ -228,7 +228,7 @@ export default function FeatureModal({
             </div>
 
             <div className="config-form-group">
-              <label>Label de PreÃ§o</label>
+              <label>Label de Preço</label>
               <input
                 type="text"
                 placeholder="ex: Incluso, + R$ 1.800"
@@ -241,7 +241,7 @@ export default function FeatureModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Ãcone ou Emoji</label>
+              <label>Ícone ou Emoji</label>
               <div className="config-emoji-picker-row">
                 <input
                   type="text"
@@ -266,7 +266,7 @@ export default function FeatureModal({
             </div>
 
             <div className="config-form-group">
-              <label>Ordem de ExibiÃ§Ã£o</label>
+              <label>Ordem de Exibição</label>
               <input
                 type="number"
                 min={1}
@@ -284,21 +284,21 @@ export default function FeatureModal({
               onChange={e => setConditionalRuleId(e.target.value)}
               className="config-select"
             >
-              <option value="">Nenhum bloco adicional (apenas seleÃ§Ã£o simples)</option>
+              <option value="">Nenhum bloco adicional (apenas seleção simples)</option>
               <option value="ecommerce">E-commerce (quantidade de produtos, gateways, plataforma atual)</option>
-              <option value="booking">Agendamento (tipo de serviÃ§o, profissionais, agenda online)</option>
-              <option value="login">Ãrea do Cliente (finalidade do acesso, portal exclusivo)</option>
+              <option value="booking">Agendamento (tipo de serviço, profissionais, agenda online)</option>
+              <option value="login">Área do Cliente (finalidade do acesso, portal exclusivo)</option>
             </select>
             <small className="config-field-hint">
-              Quando selecionada pelo cliente, aciona a exibiÃ§Ã£o do bloco de perguntas correspondente.
+              Quando selecionada pelo cliente, aciona a exibição do bloco de perguntas correspondente.
             </small>
           </div>
 
           <div className="config-form-group">
-            <label>DescriÃ§Ã£o detalhada (opcional)</label>
+            <label>Descrição detalhada (opcional)</label>
             <textarea
               rows={2}
-              placeholder="Explique o que este mÃ³dulo contempla..."
+              placeholder="Explique o que este módulo contempla..."
               value={description}
               onChange={e => setDescription(e.target.value)}
               className="config-textarea"
@@ -308,7 +308,7 @@ export default function FeatureModal({
           <div className="config-form-group toggle-row">
             <div>
               <strong>Funcionalidade Ativa</strong>
-              <small>Quando inativa, nÃ£o aparece para novos clientes e nÃ£o entra no orÃ§amento.</small>
+              <small>Quando inativa, não aparece para novos clientes e não entra no orçamento.</small>
             </div>
             <label className="toggle-switch">
               <input
@@ -319,19 +319,18 @@ export default function FeatureModal({
               <span className="toggle-track" />
             </label>
           </div>
-        </form>
 
-        <div className="config-modal-footer">
-          <button type="button" className="config-btn-cancel" onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" form="feature-modal-form" className="config-save-btn">
-            <Check size={16} />
-            <span>{isEditing ? 'Salvar Funcionalidade' : 'Criar Funcionalidade'}</span>
-          </button>
-        </div>
+          <div className="config-modal-footer">
+            <button type="button" className="config-btn-cancel" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className="config-save-btn">
+              <Check size={16} />
+              <span>{isEditing ? 'Salvar Funcionalidade' : 'Criar Funcionalidade'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
-
