@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import type { BriefingData } from '../../types';
 import type { FormConfig } from '../../types';
 import { FileText, CheckCircle2, RefreshCw } from 'lucide-react';
@@ -37,7 +37,8 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
   });
 
   // 2. Páginas adicionais (acima de 2 padrão)
-  const pagesIncluded = config.pageOptions.filter(p => p.price === 0).length;
+  const pagesList = config.pageOptions || [];
+  const pagesIncluded = pagesList.filter(p => p.price === 0 && p.enabled).length;
   const includedFree = Math.max(pagesIncluded, 2);
   const extraPages = Math.max(0, (data.selectedPages?.length || 0) - includedFree);
   if (extraPages > 0) {
@@ -51,38 +52,57 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
 
   // 3. Funcionalidades com preço configurado
   const selectedFeatures = data.selectedFeatures || [];
-  for (const opt of config.featureOptions) {
-    if (!opt.enabled) continue;
-    if (!selectedFeatures.includes(opt.id)) continue;
-    if (!opt.price || opt.price === 0) continue;
+  const featuresList = config.features && config.features.length > 0
+    ? config.features
+    : (config.featureOptions || []);
+
+  const categoriesMap = new Map((config.categories || []).map(c => [c.id, c]));
+
+  for (const feat of featuresList) {
+    if (!feat.enabled) continue;
+    // Checa se a categoria está desativada
+    const catId = (feat as any).categoryId;
+    if (catId && categoriesMap.has(catId) && !categoriesMap.get(catId)!.enabled) {
+      continue;
+    }
+
+    // Match por id ou label
+    const isSelected = selectedFeatures.includes(feat.id) || selectedFeatures.includes(feat.label) || ((feat as any).name && selectedFeatures.includes((feat as any).name));
+    if (!isSelected) continue;
+    if (!feat.price || feat.price === 0) continue;
+
+    const catName = (catId && categoriesMap.get(catId)?.name) || (feat as any).category || 'Funcionalidades';
+
     list.push({
-      id: `feature-${opt.id}`,
-      name: opt.label,
-      category: opt.category || 'Funcionalidades',
-      value: opt.price,
-      priceLabel: opt.priceLabel
+      id: `feature-${feat.id}`,
+      name: feat.label || (feat as any).name || feat.id,
+      category: catName,
+      value: feat.price,
+      priceLabel: feat.priceLabel
     });
   }
 
   // 4. Identidade Visual
-  if (data.identityStatus === 'none') {
+  const identityFull = bp.identityFullPrice ?? 1400;
+  const identityExpand = bp.identityExpandPrice ?? 700;
+  if (data.identityStatus === 'none' && identityFull > 0) {
     list.push({
       id: 'identity_full',
       name: 'Desenvolvimento de Identidade Visual',
       category: 'Branding',
-      value: 1400
+      value: identityFull
     });
-  } else if (data.identityStatus === 'logo_only') {
+  } else if (data.identityStatus === 'logo_only' && identityExpand > 0) {
     list.push({
       id: 'identity_expand',
       name: 'Expansão de Identidade Visual',
       category: 'Branding',
-      value: 700
+      value: identityExpand
     });
   }
 
   // 5. Redação e Conteúdo
-  if (data.missingContentOwner === 'agency') {
+  if (data.missingContentOwner === 'agency' && bp.copywritingPrice > 0) {
     list.push({
       id: 'copywriting',
       name: 'Curadoria e Redação de Conteúdo',
@@ -95,7 +115,7 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
   const integrationsCount = (data.integrations || []).filter(
     i => !i.toLowerCase().includes('whatsapp')
   ).length;
-  if (integrationsCount > 0) {
+  if (integrationsCount > 0 && bp.integrationPriceEach > 0) {
     list.push({
       id: 'integrations',
       name: `${integrationsCount} integração${integrationsCount > 1 ? 'ões' : ''} de software`,
@@ -178,7 +198,7 @@ export default function CostNotepad({ data }: CostNotepadProps) {
         </div>
 
         <p className="notepad-disclaimer">
-          * Estimativa preliminar. O valor final será definido após análise do briefing completo.
+          {config.uiSettings?.disclaimerText || '* Estimativa preliminar. O valor final será definido após análise do briefing completo.'}
         </p>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type { BriefingData, Project, ProjectBriefing } from '../types';
 import { getSupabase } from './supabase';
 import { generateDiagnosis, generateExecutiveSummary, generateSitemap } from '../utils/briefingIntelligence';
+import { getFormConfigSync } from './formConfigService';
 
 const DRAFT_KEY = 'atelier_briefing_draft';
 const DRAFT_PROJECT_KEY = 'atelier_briefing_project_id';
@@ -131,8 +132,9 @@ export async function submitBriefingToSupabase(projectId: string, data: Briefing
     .eq('project_id', projectId)
     .maybeSingle();
 
+  const configSnapshot = getFormConfigSync();
   const payload = {
-    responses: data,
+    responses: { ...data, _configSnapshot: configSnapshot },
     executive_summary: executiveSummary,
     diagnosis: diagnosis,
     sitemap: sitemap,

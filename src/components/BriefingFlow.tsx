@@ -1,12 +1,29 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, Plus, Trash2, AlertCircle, Sparkles, LogOut
 } from 'lucide-react';
-import type { BriefingData, ReferenceItem, CompetitorItem, Screen } from '../types';
+import type {
+  BriefingData,
+  ReferenceItem,
+  CompetitorItem,
+  Screen,
+  FormConfig,
+  DynamicFeature,
+  DynamicCategory,
+  QuestionOption,
+  DynamicStep
+} from '../types';
 import {
-  INITIAL_BRIEFING, STEPS, GOALS_OPTIONS, STRUCTURE_PAGES_OPTIONS,
-  FEATURES_OPTIONS, BRAND_PERCEPTIONS, REFERENCE_REASONS,
-  MATERIALS_OPTIONS, INTEGRATIONS_OPTIONS, UNWANTED_OPTIONS, INVESTMENT_RANGES
+  INITIAL_BRIEFING,
+  STEPS as FALLBACK_STEPS,
+  GOALS_OPTIONS as FALLBACK_GOALS,
+  STRUCTURE_PAGES_OPTIONS as FALLBACK_PAGES,
+  FEATURES_OPTIONS as FALLBACK_FEATURES,
+  REFERENCE_REASONS as FALLBACK_REASONS,
+  MATERIALS_OPTIONS as FALLBACK_MATERIALS,
+  INTEGRATIONS_OPTIONS as FALLBACK_INTEGRATIONS,
+  UNWANTED_OPTIONS as FALLBACK_UNWANTED,
+  INVESTMENT_RANGES as FALLBACK_INVESTMENT
 } from '../data/briefingConfig';
 import BriefingReview from './BriefingReview';
 import ProfessionalResult from './ProfessionalResult';
@@ -20,20 +37,39 @@ import {
 } from '../services/briefingService';
 import { signOut } from '../services/authService';
 import { getSupabase } from '../services/supabase';
+import { getFormConfig, getFormConfigSync } from '../services/formConfigService';
 import IdentityStep from './IdentityStep';
 
 interface BriefingFlowProps {
   onNavigate: (screen: Screen) => void;
   setProjectId: (id: string) => void;
+  previewModeConfig?: FormConfig;
 }
 
-export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowProps) {
+export default function BriefingFlow({ onNavigate, setProjectId, previewModeConfig }: BriefingFlowProps) {
   const { profile } = useAuth();
 
+  // Configuração dinâmica do CMS
+  const [config, setConfig] = useState<FormConfig>(() => previewModeConfig || getFormConfigSync());
+
+  useEffect(() => {
+    if (previewModeConfig) {
+      setConfig(previewModeConfig);
+      return;
+    }
+    getFormConfig().then(setConfig).catch(() => {});
+  }, [previewModeConfig]);
+
   const [data, setData] = useState<BriefingData>(() => {
+    if (previewModeConfig) {
+      return {
+        ...INITIAL_BRIEFING,
+        responsibleName: profile?.name || 'Cliente Demonstração',
+        companyName: profile?.company || 'Atelier Preview'
+      };
+    }
     const draft = loadDraftLocally();
     if (draft) return { ...INITIAL_BRIEFING, ...draft };
-    // Pré-preencher com dados do perfil autenticado
     return {
       ...INITIAL_BRIEFING,
       responsibleName: profile?.name || '',
@@ -48,16 +84,41 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
   const [validationError, setValidationError] = useState('');
   const [projectId, setLocalProjectId] = useState<string | null>(null);
 
-  // Auto-save local
+  // Etapas ativas vindas do CMS
+  const activeSteps = useMemo(() => {
+    if (config.steps && config.steps.length > 0) {
+      return config.steps
+        .filter(s => s.enabled)
+        .sort((a, b) => a.order - b.order);
+    }
+    return FALLBACK_STEPS.map(s => ({
+      id: s.id,
+      stepNumber: s.stepNumber,
+      label: s.label,
+      title: s.title,
+      subtitle: s.subtitle,
+      eyebrow: s.tag,
+      order: s.stepNumber,
+      enabled: true
+    })) as DynamicStep[];
+  }, [config.steps]);
+
+  // Garantir índice válido se etapas mudarem
+  const safeIndex = Math.min(currentStepIndex, Math.max(0, activeSteps.length - 1));
+  const currentStep = activeSteps[safeIndex] || activeSteps[0];
+
+  // Auto-save local (desativado se em modo preview)
   useEffect(() => {
+    if (previewModeConfig) return;
     saveDraftLocally(data);
     setSavedFeedback(true);
     const t = setTimeout(() => setSavedFeedback(false), 1400);
     return () => clearTimeout(t);
-  }, [data]);
+  }, [data, previewModeConfig]);
 
-  // Garantir projeto no Supabase ao carregar
+  // Garantir projeto no Supabase ao carregar (desativado se em modo preview)
   useEffect(() => {
+    if (previewModeConfig) return;
     async function initProject() {
       try {
         const sb = getSupabase();
@@ -68,7 +129,6 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
         }
         if (!uid) return;
 
-        // Restaurar projectId salvo no draft local (evita criar projeto duplicado)
         const savedProjectId = loadDraftProjectId();
         const id = await ensureProject(uid, savedProjectId, data.companyName);
         setLocalProjectId(id);
@@ -79,42 +139,40 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       }
     }
     initProject();
-  }, [profile, setProjectId]);
+  }, [profile, setProjectId, previewModeConfig]);
 
-  // Salvar rascunho no Supabase periodicamente a cada alteração (debounce 1.2s)
+  // Salvar rascunho remoto com debounce (desativado em preview)
   useEffect(() => {
-    if (!projectId) return;
+    if (previewModeConfig || !projectId) return;
     const t = setTimeout(() => {
       saveBriefingDraft(projectId, data).catch(() => {});
     }, 1200);
     return () => clearTimeout(t);
-  }, [data, projectId]);
+  }, [data, projectId, previewModeConfig]);
 
   const update = useCallback((patch: Partial<BriefingData>) => {
     setData(prev => ({ ...prev, ...patch }));
     setValidationError('');
   }, []);
 
-  const currentStep = STEPS[currentStepIndex];
-
   const handleNext = () => {
-    if (currentStep.id === 'business') {
+    if (currentStep?.id === 'business') {
       if (!data.companyName.trim() || !data.responsibleName.trim() || !data.contactEmail.trim()) {
         setValidationError('Por favor, informe pelo menos o nome da empresa, seu nome e um e-mail para contato.');
         return;
       }
     }
     setValidationError('');
-    if (currentStepIndex < STEPS.length - 1) {
-      setCurrentStepIndex(prev => prev + 1);
+    if (safeIndex < activeSteps.length - 1) {
+      setCurrentStepIndex(safeIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handlePrev = () => {
     setValidationError('');
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(prev => prev - 1);
+    if (safeIndex > 0) {
+      setCurrentStepIndex(safeIndex - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -126,6 +184,45 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
     } else {
       update({ [key]: [...list, item] } as Partial<BriefingData>);
     }
+  };
+
+  // Toggle para funcionalidades dinâmicas suportando ID ou label
+  const toggleFeatureSelection = (feat: DynamicFeature) => {
+    const list = data.selectedFeatures || [];
+    const isSelected = list.includes(feat.id) || list.includes(feat.label) || (feat.name && list.includes(feat.name));
+    if (isSelected) {
+      update({
+        selectedFeatures: list.filter(x => x !== feat.id && x !== feat.label && x !== feat.name)
+      });
+    } else {
+      update({
+        selectedFeatures: [...list, feat.label || feat.id]
+      });
+    }
+  };
+
+  const isFeatureSelected = (feat: DynamicFeature) => {
+    const list = data.selectedFeatures || [];
+    return list.includes(feat.id) || list.includes(feat.label) || (feat.name && list.includes(feat.name));
+  };
+
+  // Verificador de regras condicionais ativas
+  const hasConditionalRule = (ruleId: string) => {
+    const selected = data.selectedFeatures || [];
+    const activeFeats = (config.features || []).filter(f => f.enabled);
+
+    const matchesConfigRule = activeFeats.some(f =>
+      f.conditionalRuleId === ruleId &&
+      (selected.includes(f.id) || selected.includes(f.label) || selected.includes(f.name))
+    );
+
+    if (matchesConfigRule) return true;
+
+    // Fallback de compatibilidade com seleções legadas
+    if (ruleId === 'ecommerce') return selected.includes('Comprar produtos') || (data.mainGoals || []).includes('Vender produtos');
+    if (ruleId === 'booking') return selected.includes('Agendar horário') || (data.mainGoals || []).includes('Receber agendamentos');
+    if (ruleId === 'login') return selected.includes('Fazer login');
+    return false;
   };
 
   const addReference = () => {
@@ -151,6 +248,12 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
   };
 
   const handleSubmitFinal = async () => {
+    if (previewModeConfig) {
+      setScreen('success');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       let pid = projectId;
@@ -170,8 +273,6 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       }
       if (pid) {
         await submitBriefingToSupabase(pid, data);
-      } else {
-        console.warn('Projeto não possui ID associado para salvamento remoto.');
       }
       clearDraftLocally();
       setScreen('success');
@@ -191,19 +292,89 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
         data={data}
         onBackToEdit={() => {
           setScreen('flow');
-          setCurrentStepIndex(STEPS.length - 1);
+          setCurrentStepIndex(activeSteps.length - 1);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
     );
   }
 
+  // Resolução de opções dinâmicas para cada tipo de pergunta
+  const dynamicGoalOptions = useMemo(() => {
+    const q = config.steps?.find(s => s.id === 'goals')?.questions?.find(x => x.id === 'mainGoals');
+    if (q?.options?.length) {
+      return q.options.filter(o => o.enabled).map(o => o.label || o.id);
+    }
+    return FALLBACK_GOALS;
+  }, [config.steps]);
+
+  const dynamicPageOptions = useMemo(() => {
+    if (config.pageOptions?.length) {
+      return config.pageOptions.filter(p => p.enabled).sort((a, b) => a.order - b.order);
+    }
+    return FALLBACK_PAGES.map((label, idx) => ({ id: label, label, order: idx + 1, enabled: true })) as QuestionOption[];
+  }, [config.pageOptions]);
+
+  const dynamicMaterials = useMemo(() => {
+    const q = config.steps?.find(s => s.id === 'materials')?.questions?.find(x => x.id === 'existingMaterials');
+    if (q?.options?.length) {
+      return q.options.filter(o => o.enabled).map(o => o.label || o.id);
+    }
+    return FALLBACK_MATERIALS;
+  }, [config.steps]);
+
+  const dynamicIntegrations = useMemo(() => {
+    const q = config.steps?.find(s => s.id === 'integrations')?.questions?.find(x => x.id === 'integrations');
+    if (q?.options?.length) {
+      return q.options.filter(o => o.enabled).map(o => o.label || o.id);
+    }
+    return FALLBACK_INTEGRATIONS;
+  }, [config.steps]);
+
+  const dynamicUnwanted = useMemo(() => {
+    const q = config.steps?.find(s => s.id === 'restrictions')?.questions?.find(x => x.id === 'unwantedElements');
+    if (q?.options?.length) {
+      return q.options.filter(o => o.enabled).map(o => o.label || o.id);
+    }
+    return FALLBACK_UNWANTED;
+  }, [config.steps]);
+
+  const dynamicInvestmentRanges = useMemo(() => {
+    const q = config.steps?.find(s => s.id === 'timeline')?.questions?.find(x => x.id === 'investmentRange');
+    if (q?.options?.length) {
+      return q.options.filter(o => o.enabled).map(o => o.label || o.id);
+    }
+    return FALLBACK_INVESTMENT;
+  }, [config.steps]);
+
+  const dynamicReferenceReasons = useMemo(() => {
+    const q = config.steps?.find(s => s.id === 'references')?.questions?.find(x => x.id === 'references');
+    if (q?.options?.length) {
+      return q.options.filter(o => o.enabled).map(o => o.label || o.id);
+    }
+    return FALLBACK_REASONS;
+  }, [config.steps]);
+
+  // Categorias e funcionalidades dinâmicas ativas
+  const activeCategories = useMemo(() => {
+    return (config.categories || []).filter(c => c.enabled).sort((a, b) => a.order - b.order);
+  }, [config.categories]);
+
+  const activeFeatures = useMemo(() => {
+    const catMap = new Map((config.categories || []).map(c => [c.id, c]));
+    return (config.features || [])
+      .filter(f => f.enabled && (!f.categoryId || catMap.get(f.categoryId)?.enabled !== false))
+      .sort((a, b) => a.order - b.order);
+  }, [config.features, config.categories]);
+
   const renderStepContent = () => {
+    if (!currentStep) return null;
+
     switch (currentStep.id) {
       case 'business':
         return (
           <div className="step-body">
-            <div className="eyebrow">01 / CONTEXTO DA EMPRESA</div>
+            <div className="eyebrow">{currentStep.eyebrow || '01 / CONTEXTO DA EMPRESA'}</div>
             <h1>{currentStep.title}</h1>
             <p>{currentStep.subtitle}</p>
 
@@ -268,12 +439,12 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'goals':
         return (
           <div className="step-body">
-            <div className="eyebrow">02 / PROPÓSITO</div>
+            <div className="eyebrow">{currentStep.eyebrow || '02 / PROPÓSITO'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Selecione os principais objetivos que o novo site deve cumprir:</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="selection-cards-grid">
-              {GOALS_OPTIONS.map(goal => {
+              {dynamicGoalOptions.map(goal => {
                 const selected = data.mainGoals.includes(goal);
                 return (
                   <button type="button" key={goal} className={'card-choice ' + (selected ? 'is-selected' : '')} onClick={() => toggleArrayItem('mainGoals', goal)}>
@@ -299,9 +470,9 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'audience':
         return (
           <div className="step-body">
-            <div className="eyebrow">03 / AUDIÊNCIA</div>
+            <div className="eyebrow">{currentStep.eyebrow || '03 / AUDIÊNCIA'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Quem você quer alcançar e encantar com a presença digital da sua marca?</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="field-grid two">
               <label className="field-label">
@@ -347,17 +518,25 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'structure':
         return (
           <div className="step-body">
-            <div className="eyebrow">04 / ARQUITETURA</div>
+            <div className="eyebrow">{currentStep.eyebrow || '04 / ARQUITETURA'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Quais páginas e seções você gostaria de ter no site? Selecione as que se aplicam:</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="pills-grid-large">
-              {STRUCTURE_PAGES_OPTIONS.map(page => {
-                const selected = data.selectedPages.includes(page);
+              {dynamicPageOptions.map(page => {
+                const selected = data.selectedPages.includes(page.label || page.id);
                 return (
-                  <button type="button" key={page} className={'pill-toggle-btn ' + (selected ? 'is-active' : '')} onClick={() => toggleArrayItem('selectedPages', page)}>
+                  <button
+                    type="button"
+                    key={page.id}
+                    className={'pill-toggle-btn ' + (selected ? 'is-active' : '')}
+                    onClick={() => toggleArrayItem('selectedPages', page.label || page.id)}
+                  >
                     {selected && <Check size={14} />}
-                    <span>{page}</span>
+                    <span>{page.label || page.id}</span>
+                    {page.price && page.price > 0 ? (
+                      <small className="pill-price-tag">+{page.priceLabel || `R$ ${page.price}`}</small>
+                    ) : null}
                   </button>
                 );
               })}
@@ -375,23 +554,58 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'features':
         return (
           <div className="step-body">
-            <div className="eyebrow">05 / RECURSOS & INTERAÇÕES</div>
+            <div className="eyebrow">{currentStep.eyebrow || '05 / RECURSOS & INTERAÇÕES'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Selecione tudo o que você gostaria que o visitante pudesse fazer no site:</p>
+            <p>{currentStep.subtitle}</p>
 
-            <div className="selection-cards-grid">
-              {FEATURES_OPTIONS.map(feat => {
-                const selected = data.selectedFeatures.includes(feat);
+            {/* Categorias Dinâmicas com Funcionalidades */}
+            <div className="features-dynamic-grouped-container">
+              {activeCategories.map(cat => {
+                const catFeatures = activeFeatures.filter(f => f.categoryId === cat.id);
+                if (catFeatures.length === 0) return null;
+
                 return (
-                  <button type="button" key={feat} className={'card-choice ' + (selected ? 'is-selected' : '')} onClick={() => toggleArrayItem('selectedFeatures', feat)}>
-                    <span className="check-bullet">{selected && <Check size={14} />}</span>
-                    <strong>{feat}</strong>
-                  </button>
+                  <div key={cat.id} className="category-features-section">
+                    <div className="cat-section-header">
+                      <span className="cat-section-icon">{cat.icon || '📁'}</span>
+                      <span className="cat-section-name">{cat.name}</span>
+                      {cat.description && <small className="cat-section-desc">— {cat.description}</small>}
+                    </div>
+
+                    <div className="selection-cards-grid">
+                      {catFeatures.map(feat => {
+                        const selected = isFeatureSelected(feat);
+                        return (
+                          <button
+                            type="button"
+                            key={feat.id}
+                            className={'card-choice ' + (selected ? 'is-selected' : '')}
+                            onClick={() => toggleFeatureSelection(feat)}
+                          >
+                            <span className="check-bullet">{selected && <Check size={14} />}</span>
+                            <div className="feat-choice-body">
+                              <div className="feat-title-line">
+                                <span className="feat-icon">{feat.icon || '✨'}</span>
+                                <strong>{feat.label || feat.name}</strong>
+                              </div>
+                              {feat.description && (
+                                <p className="feat-desc">{feat.description}</p>
+                              )}
+                              <span className={'feat-price-pill ' + (feat.price === 0 ? 'is-free' : '')}>
+                                {feat.priceLabel || (feat.price === 0 ? 'Incluso' : `+ R$ ${feat.price}`)}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
 
-            {data.selectedFeatures.includes('Comprar produtos') && (
+            {/* Condicional E-commerce */}
+            {hasConditionalRule('ecommerce') && (
               <div className="conditional-group">
                 <div className="conditional-title"><Sparkles size={16} /> Detalhes sobre Venda Online / Loja</div>
                 <div className="field-grid two">
@@ -421,7 +635,8 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
               </div>
             )}
 
-            {data.selectedFeatures.includes('Agendar horário') && (
+            {/* Condicional Agendamento */}
+            {hasConditionalRule('booking') && (
               <div className="conditional-group">
                 <div className="conditional-title"><Sparkles size={16} /> Detalhes sobre Agendamentos</div>
                 <div className="field-grid two">
@@ -451,7 +666,8 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
               </div>
             )}
 
-            {data.selectedFeatures.includes('Fazer login') && (
+            {/* Condicional Login */}
+            {hasConditionalRule('login') && (
               <div className="conditional-group">
                 <div className="conditional-title"><Sparkles size={16} /> Área de Membros ou Acesso Restrito</div>
                 <label className="field-label">
@@ -476,9 +692,9 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'references':
         return (
           <div className="step-body">
-            <div className="eyebrow">07 / BENCHMARK</div>
+            <div className="eyebrow">{currentStep.eyebrow || '07 / BENCHMARK'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Compartilhe sites que você admira e explique exatamente o que você gostou em cada um deles:</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="references-manager">
               {data.references.map((ref, index) => (
@@ -496,7 +712,7 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
                   <div className="ref-reasons">
                     <span>O que você gostou nesse site?</span>
                     <div className="pills-reasons">
-                      {REFERENCE_REASONS.map(reason => {
+                      {dynamicReferenceReasons.map(reason => {
                         const isChosen = ref.reasons.includes(reason);
                         return (
                           <button type="button" key={reason} className={'mini-pill ' + (isChosen ? 'active' : '')} onClick={() => {
@@ -525,12 +741,12 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'materials':
         return (
           <div className="step-body">
-            <div className="eyebrow">08 / MATERIAIS & ATIVOS</div>
+            <div className="eyebrow">{currentStep.eyebrow || '08 / MATERIAIS & ATIVOS'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Quais materiais a sua empresa já possui prontos para o projeto?</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="selection-cards-grid">
-              {MATERIALS_OPTIONS.map(mat => {
+              {dynamicMaterials.map(mat => {
                 const selected = data.existingMaterials.includes(mat);
                 return (
                   <button type="button" key={mat} className={'card-choice ' + (selected ? 'is-selected' : '')} onClick={() => toggleArrayItem('existingMaterials', mat)}>
@@ -562,12 +778,12 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'integrations':
         return (
           <div className="step-body">
-            <div className="eyebrow">09 / CONEXÕES</div>
+            <div className="eyebrow">{currentStep.eyebrow || '09 / CONEXÕES'}</div>
             <h1>{currentStep.title}</h1>
-            <p>O site precisa se comunicar com alguma ferramenta que sua operação já utiliza?</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="selection-cards-grid">
-              {INTEGRATIONS_OPTIONS.map(item => {
+              {dynamicIntegrations.map(item => {
                 const selected = data.integrations.includes(item);
                 return (
                   <button type="button" key={item} className={'card-choice ' + (selected ? 'is-selected' : '')} onClick={() => toggleArrayItem('integrations', item)}>
@@ -588,9 +804,9 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'competitors':
         return (
           <div className="step-body">
-            <div className="eyebrow">10 / BENCHMARKING</div>
+            <div className="eyebrow">{currentStep.eyebrow || '10 / BENCHMARKING'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Quais são os principais concorrentes da sua empresa e o que você repara neles?</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="references-manager">
               {data.competitors.map((comp, index) => (
@@ -627,12 +843,12 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'restrictions':
         return (
           <div className="step-body">
-            <div className="eyebrow">11 / LINHAS VERMELHAS</div>
+            <div className="eyebrow">{currentStep.eyebrow || '11 / LINHAS VERMELHAS'}</div>
             <h1>{currentStep.title}</h1>
-            <p>O que você definitivamente <b>NÃO</b> gostaria de ver no seu projeto?</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="selection-cards-grid">
-              {UNWANTED_OPTIONS.map(item => {
+              {dynamicUnwanted.map(item => {
                 const selected = data.unwantedElements.includes(item);
                 return (
                   <button type="button" key={item} className={'card-choice danger-mode ' + (selected ? 'is-selected' : '')} onClick={() => toggleArrayItem('unwantedElements', item)}>
@@ -653,9 +869,9 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'timeline':
         return (
           <div className="step-body">
-            <div className="eyebrow">12 / PLANEJAMENTO</div>
+            <div className="eyebrow">{currentStep.eyebrow || '12 / PLANEJAMENTO'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Alinhe os horizontes de prazo e a faixa de investimento planejada:</p>
+            <p>{currentStep.subtitle}</p>
 
             <div className="field-grid two">
               <label className="field-label">
@@ -666,7 +882,7 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
                 <span>Faixa de investimento estimada para o projeto</span>
                 <select value={data.investmentRange} onChange={e => update({ investmentRange: e.target.value })}>
                   <option value="">Selecione uma faixa estimada</option>
-                  {INVESTMENT_RANGES.map(range => (
+                  {dynamicInvestmentRanges.map(range => (
                     <option key={range} value={range}>{range}</option>
                   ))}
                 </select>
@@ -678,9 +894,9 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
       case 'notes':
         return (
           <div className="step-body">
-            <div className="eyebrow">13 / VISÃO ABERTA</div>
+            <div className="eyebrow">{currentStep.eyebrow || '13 / VISÃO ABERTA'}</div>
             <h1>{currentStep.title}</h1>
-            <p>Existe alguma coisa que você imaginou para o seu site e ainda não conseguimos perguntar?</p>
+            <p>{currentStep.subtitle}</p>
 
             <label className="field-label">
               <textarea rows={5} placeholder="Fique à vontade para escrever sobre qualquer detalhe, ideia, sensação ou prioridade adicional..." value={data.finalObservations} onChange={e => update({ finalObservations: e.target.value })} />
@@ -706,6 +922,8 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
     }
   };
 
+  const ui = config.uiSettings;
+
   return (
     <main className="briefing-app">
       <header className="flow-topbar">
@@ -715,39 +933,48 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
 
         <div className="flow-progress">
           <span className="step-count">
-            {String(currentStepIndex + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}
+            {String(safeIndex + 1).padStart(2, '0')} / {String(activeSteps.length).padStart(2, '0')}
           </span>
           <div className="progress-bar-rail">
-            <div className="progress-bar-fill" style={{ width: ((currentStepIndex + 1) / STEPS.length) * 100 + '%' }} />
+            <div className="progress-bar-fill" style={{ width: ((safeIndex + 1) / activeSteps.length) * 100 + '%' }} />
           </div>
-          <strong className="step-label-name">{currentStep.label}</strong>
+          <strong className="step-label-name">{currentStep?.label}</strong>
         </div>
 
         <div className="flow-topbar-right">
           <span className="auto-save-indicator">
-            {savedFeedback ? 'Salvo automaticamente' : 'Auto-salvamento ativo'}
+            {previewModeConfig
+              ? 'Modo de visualização ativa'
+              : (savedFeedback ? 'Salvo automaticamente' : (ui?.autoSaveText || 'Auto-salvamento ativo'))}
           </span>
-          <button
-            type="button"
-            className="flow-signout-btn"
-            title="Sair da conta"
-            onClick={async () => {
-              await signOut();
-              onNavigate('home');
-            }}
-          >
-            <LogOut size={15} />
-            <span>Sair</span>
-          </button>
+          {!previewModeConfig && (
+            <button
+              type="button"
+              className="flow-signout-btn"
+              title="Sair da conta"
+              onClick={async () => {
+                await signOut();
+                onNavigate('home');
+              }}
+            >
+              <LogOut size={15} />
+              <span>Sair</span>
+            </button>
+          )}
         </div>
       </header>
 
       <nav className="stepper-nav" aria-label="Navegação entre etapas">
-        {STEPS.map((s, i) => {
-          const isDone = i < currentStepIndex;
-          const isCurrent = i === currentStepIndex;
+        {activeSteps.map((s, i) => {
+          const isDone = i < safeIndex;
+          const isCurrent = i === safeIndex;
           return (
-            <button key={s.id} type="button" className={'step-btn ' + (isCurrent ? 'is-current' : isDone ? 'is-done' : '')} onClick={() => { setCurrentStepIndex(i); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+            <button
+              key={s.id}
+              type="button"
+              className={'step-btn ' + (isCurrent ? 'is-current' : isDone ? 'is-done' : '')}
+              onClick={() => { setCurrentStepIndex(i); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            >
               <span className="step-number">{isDone ? <Check size={12} /> : String(i + 1).padStart(2, '0')}</span>
               <span className="step-text">{s.label}</span>
             </button>
@@ -755,7 +982,7 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
         })}
       </nav>
 
-      <div className={`flow-workspace ${currentStep.id !== 'review' ? 'has-preview-sidebar' : ''}`}>
+      <div className={`flow-workspace ${currentStep?.id !== 'review' ? 'has-preview-sidebar' : ''}`}>
         <div className="flow-form-column">
           <div className="flow-container">
             {renderStepContent()}
@@ -767,20 +994,29 @@ export default function BriefingFlow({ onNavigate, setProjectId }: BriefingFlowP
               </div>
             )}
 
-            {currentStep.id !== 'review' && (
+            {currentStep?.id !== 'review' && (
               <footer className="flow-actions-footer">
-                <button type="button" className="btn-back" disabled={currentStepIndex === 0} onClick={handlePrev}>
-                  <ArrowLeft size={16} /> Voltar
+                <button
+                  type="button"
+                  className="btn-back"
+                  disabled={safeIndex === 0}
+                  onClick={handlePrev}
+                >
+                  <ArrowLeft size={16} /> {ui?.prevButtonLabel || 'Voltar'}
                 </button>
-                <button type="button" className="primary" onClick={handleNext}>
-                  Continuar <ArrowRight size={16} />
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={handleNext}
+                >
+                  {ui?.nextButtonLabel || 'Continuar'} <ArrowRight size={16} />
                 </button>
               </footer>
             )}
           </div>
         </div>
 
-        {currentStep.id !== 'review' && (
+        {currentStep?.id !== 'review' && (
           <aside className="flow-preview-column">
             <div className="preview-sticky-container">
               <ComputerPreview data={data} />

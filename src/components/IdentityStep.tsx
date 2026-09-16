@@ -1,4 +1,4 @@
-﻿/**
+/**
  * IdentityStep.tsx
  * Etapa 6 do briefing: Identidade Visual + Seletor de Paletas
  * Extraído como componente para poder usar hooks (useState).
@@ -22,6 +22,9 @@ export default function IdentityStep({ data, update, toggleArrayItem, stepTitle 
   const formConfig = getFormConfigSync();
   const enabledPalettes = formConfig.palettes.filter((p: ColorPalette) => p.enabled);
 
+  const dynamicPerceptions = (formConfig.steps?.find(s => s.id === 'identity')?.questions?.find(q => q.id === 'brandPerceptions')?.options?.filter(o => o.enabled)
+    || BRAND_PERCEPTIONS.map(b => ({ id: b.id, label: b.id, description: b.desc }))) as { id: string; label?: string; description?: string; desc?: string }[];
+
   return (
     <div className="step-body">
       <div className="eyebrow">06 / ATMOSFERA VISUAL</div>
@@ -29,7 +32,7 @@ export default function IdentityStep({ data, update, toggleArrayItem, stepTitle 
       <p>Como você gostaria que sua marca fosse percebida visualmente?</p>
 
       <div className="perceptions-grid">
-        {BRAND_PERCEPTIONS.map(item => {
+        {dynamicPerceptions.map(item => {
           const selected = data.brandPerceptions.includes(item.id);
           return (
             <button
@@ -39,8 +42,8 @@ export default function IdentityStep({ data, update, toggleArrayItem, stepTitle 
               onClick={() => toggleArrayItem('brandPerceptions', item.id)}
             >
               <span className="check-bullet">{selected && <Check size={14} />}</span>
-              <strong>{item.id}</strong>
-              <small>{item.desc}</small>
+              <strong>{item.label || item.id}</strong>
+              <small>{item.description || item.desc}</small>
             </button>
           );
         })}

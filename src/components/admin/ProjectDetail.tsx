@@ -440,7 +440,7 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
                 ]} />
 
                 <ResponseSection title="Revisão e Observações Finais" items={[
-                  { label: 'Resumo executivo', value: briefing.executive_summary },
+                  { label: 'Resumo executivo', value: briefing?.executive_summary },
                   { label: 'Observações adicionais', value: responses.finalObservations }
                 ]} />
               </div>

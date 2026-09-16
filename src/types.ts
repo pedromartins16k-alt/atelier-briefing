@@ -93,7 +93,7 @@ export type Screen =
   | 'admin-config';
 
 // ============================================================
-// Tipos do Sistema de Configuração do Formulário
+// Tipos do Sistema de Configuração do Formulário & CMS
 // ============================================================
 
 export type PreviewImpact = {
@@ -111,6 +111,7 @@ export type FormOptionConfig = {
   priceLabel?: string;      // ex: "+ R$ 850/módulo"
   preview?: PreviewImpact;  // efeito no preview
   enabled: boolean;
+  order?: number;
 };
 
 export type ColorPaletteColors = {
@@ -128,19 +129,125 @@ export type ColorPalette = {
   emoji?: string;
   colors: ColorPaletteColors;
   enabled: boolean;
+  order?: number;
 };
 
+// 1. Categorias Dinâmicas
+export type DynamicCategory = {
+  id: string;          // slug único (ex: 'comunicacao', 'vendas')
+  name: string;        // ex: 'Comunicação'
+  description?: string;
+  icon?: string;       // emoji ou nome de ícone Lucide
+  order: number;
+  enabled: boolean;
+};
+
+// 2. Funcionalidades Dinâmicas (CRUD Completo)
+export type DynamicFeature = {
+  id: string;          // slug/identificador único (ex: 'contact', 'whatsapp', 'ecommerce')
+  name: string;        // nome interno
+  label: string;       // rótulo exibido ao cliente (ex: 'Loja & E-commerce')
+  description?: string;
+  categoryId: string;  // chave estrangeira lógica para DynamicCategory.id
+  price: number;       // valor em BRL (0 = incluso)
+  priceLabel?: string; // ex: 'Incluso', '+ R$ 1.800'
+  icon?: string;       // emoji ou ícone Lucide
+  order: number;
+  enabled: boolean;
+  conditionalRuleId?: string; // ex: 'ecommerce', 'booking', 'login'
+};
+
+// 3. Opções de Resposta Dinâmicas (para perguntas com múltiplas opções)
+export type QuestionOption = {
+  id: string;
+  label: string;
+  description?: string;
+  price?: number;
+  priceLabel?: string;
+  icon?: string;
+  order: number;
+  enabled: boolean;
+};
+
+// 4. Tipos de Campos Suportados
+export type FieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'radio'
+  | 'checkbox_cards'
+  | 'pills_multi'
+  | 'palette_picker'
+  | 'references_manager'
+  | 'competitors_manager'
+  | 'conditional_group';
+
+// 5. Perguntas & Campos do Briefing
+export type DynamicQuestion = {
+  id: string;             // ex: 'companyName', 'mainGoals', 'targetAudience'
+  fieldKey: string;       // chave no objeto BriefingData
+  label: string;          // texto da pergunta
+  subtitle?: string;      // texto explicativo/ajuda
+  placeholder?: string;
+  fieldType: FieldType;
+  required?: boolean;
+  order: number;
+  enabled: boolean;
+  options?: QuestionOption[]; // opções configuráveis para seletores
+  dependsOn?: {           // regra de exibição condicional
+    field: string;
+    operator: 'equals' | 'includes' | 'not_empty';
+    value: any;
+  };
+};
+
+// 6. Etapas do Briefing (Steps)
+export type DynamicStep = {
+  id: string;             // ex: 'business', 'goals', 'features', etc.
+  stepNumber: number;
+  label: string;          // label no stepper (ex: 'Negócio')
+  title: string;          // título na página
+  subtitle: string;       // subtítulo descritivo
+  eyebrow?: string;       // ex: '01 / CONTEXTO DA EMPRESA'
+  order: number;
+  enabled: boolean;
+  questions?: DynamicQuestion[];
+};
+
+// 7. Configurações de UI e Textos
+export type UISettings = {
+  briefingTitle: string;
+  briefingSubtitle: string;
+  nextButtonLabel: string;
+  prevButtonLabel: string;
+  finishButtonLabel: string;
+  autoSaveText: string;
+  currencySymbol: string;
+  disclaimerText: string;
+  successTitle?: string;
+  successSubtitle?: string;
+};
+
+// 8. Configuração Global Consolidada
 export type FormConfig = {
   palettes: ColorPalette[];
-  featureOptions: FormOptionConfig[];
-  pageOptions: FormOptionConfig[];
-  goalOptions: FormOptionConfig[];
+  categories: DynamicCategory[];
+  features: DynamicFeature[];
+  steps: DynamicStep[];
+  pageOptions: QuestionOption[];
   basePrices: {
     base: number;         // projeto base
     extraPagePrice: number;
     copywritingPrice: number;
     integrationPriceEach: number;
+    identityFullPrice?: number;
+    identityExpandPrice?: number;
   };
+  uiSettings: UISettings;
+  // Retrocompatibilidade
+  featureOptions?: FormOptionConfig[];
+  goalOptions?: FormOptionConfig[];
   updatedAt?: string;
 };
 
