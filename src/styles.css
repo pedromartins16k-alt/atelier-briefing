@@ -4128,16 +4128,20 @@
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 10000;
-  padding: 20px;
+  padding: 40px 20px;
+  overflow-y: auto;
 }
 .config-modal-card {
   background: #fff;
   border-radius: 14px;
   width: 100%;
   max-width: 580px;
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 16px 40px rgba(0,0,0,0.22);
   overflow: hidden;
   animation: modalScaleUp 0.2s ease-out;
@@ -4156,6 +4160,7 @@
   padding: 20px 24px;
   border-bottom: 1px solid #f0ece5;
   background: #fafaf8;
+  flex-shrink: 0;
 }
 .config-modal-icon-badge {
   width: 36px;
@@ -4208,6 +4213,8 @@
 
 .config-modal-form {
   padding: 24px;
+  overflow-y: auto;
+  flex: 1;
 }
 .config-modal-error {
   display: flex;
@@ -4331,9 +4338,11 @@
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 20px;
-  padding-top: 16px;
+  padding: 16px 24px;
   border-top: 1px solid #f0ece5;
+  background: #fafaf8;
+  flex-shrink: 0;
+  margin-top: 0;
 }
 .config-btn-cancel {
   background: none;
