@@ -286,19 +286,6 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
     }
   };
 
-  if (screen === 'success') {
-    return (
-      <ProfessionalResult
-        data={data}
-        onBackToEdit={() => {
-          setScreen('flow');
-          setCurrentStepIndex(activeSteps.length - 1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
-    );
-  }
-
   // Resolução de opções dinâmicas para cada tipo de pergunta
   const dynamicGoalOptions = useMemo(() => {
     const q = config.steps?.find(s => s.id === 'goals')?.questions?.find(x => x.id === 'mainGoals');
@@ -366,6 +353,19 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
       .filter(f => f.enabled && (!f.categoryId || catMap.get(f.categoryId)?.enabled !== false))
       .sort((a, b) => a.order - b.order);
   }, [config.features, config.categories]);
+
+  if (screen === 'success') {
+    return (
+      <ProfessionalResult
+        data={data}
+        onBackToEdit={() => {
+          setScreen('flow');
+          setCurrentStepIndex(activeSteps.length - 1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
 
   const renderStepContent = () => {
     if (!currentStep) return null;
