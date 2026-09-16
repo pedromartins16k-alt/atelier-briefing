@@ -240,6 +240,15 @@ export async function updateProjectStatus(projectId: string, status: string): Pr
   if (error) throw error;
 }
 
+export async function deleteProject(projectId: string): Promise<void> {
+  const sb = getSupabase();
+  const { error } = await sb
+    .from('projects')
+    .delete()
+    .eq('id', projectId);
+  if (error) throw error;
+}
+
 // ---- Briefings ----
 
 export async function getBriefingByProject(projectId: string): Promise<ProjectBriefing | null> {

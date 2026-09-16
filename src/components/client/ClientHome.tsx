@@ -129,12 +129,21 @@ export default function ClientHome({ onNavigate }: ClientHomeProps) {
                     <strong> {PROJECT_STATUS_LABELS[project.status]}</strong>
                   </p>
                 </div>
-                <button
-                  className="primary action-btn"
-                  onClick={() => onNavigate('success')}
-                >
-                  Ver meu briefing <ArrowRight size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    className="primary action-btn"
+                    onClick={() => onNavigate('success')}
+                  >
+                    Ver meu briefing <ArrowRight size={16} />
+                  </button>
+                  <button
+                    className="action-btn"
+                    style={{ background: '#f4efe9', border: '1px solid #dcd7cf', color: '#444' }}
+                    onClick={() => onNavigate('flow')}
+                  >
+                    Editar respostas
+                  </button>
+                </div>
               </div>
             )}
 

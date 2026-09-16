@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ArrowRight, Filter } from 'lucide-react';
+import { Search, ArrowRight, Filter, Trash2 } from 'lucide-react';
 import type { Screen, Project, ProjectStatus } from '../../types';
 import type { NavigateOpts } from '../../App';
 import { PROJECT_STATUS_LABELS } from '../../types';
-import { getAllProjects } from '../../services/adminService';
+import { getAllProjects, deleteProject } from '../../services/adminService';
 
 interface ProjectsListProps {
   onNavigate: (screen: Screen, opts?: NavigateOpts) => void;
@@ -117,16 +117,37 @@ export default function ProjectsList({ onNavigate }: ProjectsListProps) {
                   <td>{new Date(project.created_at).toLocaleDateString('pt-BR')}</td>
                   <td>{new Date(project.updated_at).toLocaleDateString('pt-BR')}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="admin-row-action"
-                      onClick={e => {
-                        e.stopPropagation();
-                        onNavigate('admin-project', { projectId: project.id });
-                      }}
-                    >
-                      Abrir <ArrowRight size={14} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="admin-row-action"
+                        onClick={e => {
+                          e.stopPropagation();
+                          onNavigate('admin-project', { projectId: project.id });
+                        }}
+                      >
+                        Abrir <ArrowRight size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-row-action"
+                        style={{ color: '#c92a2a', borderColor: '#ffc9c9' }}
+                        title="Excluir projeto"
+                        onClick={async e => {
+                          e.stopPropagation();
+                          if (window.confirm(`Tem certeza que deseja excluir o projeto "${project.name}"?`)) {
+                            try {
+                              await deleteProject(project.id);
+                              setProjects(prev => prev.filter(p => p.id !== project.id));
+                            } catch (err) {
+                              alert('Erro ao excluir projeto.');
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

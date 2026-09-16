@@ -133,7 +133,23 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
         const id = await ensureProject(uid, savedProjectId, data.companyName);
         setLocalProjectId(id);
         setProjectId(id);
-        saveBriefingDraft(id, data).catch(() => {});
+
+        // Se o projeto já tiver respostas salvas no Supabase, carregar para edição
+        const { data: savedBriefing } = await sb
+          .from('project_briefings')
+          .select('responses')
+          .eq('project_id', id)
+          .maybeSingle();
+
+        if (savedBriefing?.responses && typeof savedBriefing.responses === 'object') {
+          setData(prev => ({
+            ...INITIAL_BRIEFING,
+            ...savedBriefing.responses,
+            ...prev
+          }));
+        } else {
+          saveBriefingDraft(id, data).catch(() => {});
+        }
       } catch (e) {
         console.error('Erro ao inicializar projeto no Supabase:', e);
       }

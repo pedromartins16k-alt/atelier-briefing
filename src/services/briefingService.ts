@@ -39,15 +39,14 @@ export function clearDraftLocally() {
 }
 
 /**
- * Cria SEMPRE um novo projeto para o cliente.
- * Nunca reutiliza o projeto mais recente — cada briefing novo gera um projeto separado.
- * Se um projectId existente for fornecido (restaurado do draft), valida se ele realmente
- * pertence ao cliente antes de reutilizá-lo.
+ * Garante que cada cliente tenha apenas 1 projeto principal.
+ * Se o cliente já tiver um projeto criado, sempre reutiliza esse projeto (atualizando se necessário).
+ * Nunca cria projetos duplicados para o mesmo cliente.
  */
 export async function ensureProject(clientId: string, existingProjectId?: string | null, projectName?: string): Promise<string> {
   const sb = getSupabase();
 
-  // Se há um projectId salvo, verificar se ainda existe e pertence ao cliente
+  // 1. Se há um projectId salvo no draft/sessão, verificar se ainda existe e pertence ao cliente
   if (existingProjectId) {
     const { data: existing } = await sb
       .from('projects')
@@ -57,7 +56,6 @@ export async function ensureProject(clientId: string, existingProjectId?: string
       .maybeSingle();
 
     if (existing) {
-      // Projeto válido — atualiza nome se necessário e retorna
       if (projectName && projectName.trim() && projectName !== 'Novo Projeto') {
         await sb
           .from('projects')
@@ -68,7 +66,27 @@ export async function ensureProject(clientId: string, existingProjectId?: string
     }
   }
 
-  // Criar projeto novo (não reutiliza o mais recente)
+  // 2. Buscar se o cliente já tem QUALQUER projeto cadastrado no banco
+  const { data: clientExistingProject } = await sb
+    .from('projects')
+    .select('id')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (clientExistingProject) {
+    saveDraftProjectId(clientExistingProject.id);
+    if (projectName && projectName.trim() && projectName !== 'Novo Projeto') {
+      await sb
+        .from('projects')
+        .update({ name: projectName.trim() })
+        .eq('id', clientExistingProject.id);
+    }
+    return clientExistingProject.id;
+  }
+
+  // 3. Somente se o cliente NÃO tiver nenhum projeto anterior, cria o primeiro
   const { data, error } = await sb
     .from('projects')
     .insert({

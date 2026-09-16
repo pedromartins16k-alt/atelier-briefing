@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   getProjectById, getBriefingByProject, getNotesByProject,
   addNote, updateNote, deleteNote, getHistoryByProject,
-  updateProjectStatus, addHistoryEvent
+  updateProjectStatus, addHistoryEvent, deleteProject
 } from '../../services/adminService';
 import { generateMarkdown } from '../../utils/markdownExporter';
 
@@ -229,6 +229,25 @@ export default function ProjectDetail({ projectId, onNavigate }: ProjectDetailPr
               </button>
             </div>
           )}
+
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ color: '#c92a2a', borderColor: '#ffc9c9' }}
+            title="Excluir este projeto"
+            onClick={async () => {
+              if (window.confirm(`Tem certeza que deseja excluir permanentemente o projeto "${project.name}"?`)) {
+                try {
+                  await deleteProject(projectId);
+                  onNavigate('admin-projects');
+                } catch (err) {
+                  alert('Erro ao excluir projeto.');
+                }
+              }
+            }}
+          >
+            <Trash2 size={15} /> Excluir
+          </button>
         </div>
       </div>
 
