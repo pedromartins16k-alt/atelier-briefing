@@ -1,4 +1,5 @@
 import type { BriefingData, AttentionPoint } from '../types';
+import { FEATURE_ALIASES, hasSelectedFeature } from './featureMatchers';
 
 export function analyzeBriefing(data: BriefingData): {
   executiveSummary: string;
@@ -17,7 +18,7 @@ export function analyzeBriefing(data: BriefingData): {
     });
   }
 
-  const wantsEcommerce = data.selectedFeatures.includes('Comprar produtos') || data.mainGoals.includes('Vender produtos');
+  const wantsEcommerce = hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.ecommerce) || data.mainGoals.includes('Vender produtos');
   if (wantsEcommerce) {
     if (!data.featureConditionals.ecommerceHasPaymentGateway || data.featureConditionals.ecommerceHasPaymentGateway === 'Não') {
       attentionPoints.push({
@@ -35,7 +36,7 @@ export function analyzeBriefing(data: BriefingData): {
     }
   }
 
-  const wantsBooking = data.selectedFeatures.includes('Agendar horário') || data.mainGoals.includes('Receber agendamentos');
+  const wantsBooking = hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.booking) || data.mainGoals.includes('Receber agendamentos');
   if (wantsBooking) {
     if (!data.featureConditionals.bookingCurrentTool) {
       attentionPoints.push({
@@ -86,9 +87,9 @@ export function analyzeBriefing(data: BriefingData): {
   const keyActions: string[] = [];
   if (data.singlePrimaryAction.trim()) {
     keyActions.push('Ação principal (CTA primordial): "' + data.singlePrimaryAction.trim() + '"');
-  } else if (data.selectedFeatures.includes('Chamar no WhatsApp')) {
+  } else if (hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.whatsapp)) {
     keyActions.push('Ação principal inferida: Início imediato de conversa via WhatsApp');
-  } else if (data.selectedFeatures.includes('Solicitar orçamento')) {
+  } else if (hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.contact)) {
     keyActions.push('Ação principal inferida: Envio de formulário qualificado de orçamento');
   }
 

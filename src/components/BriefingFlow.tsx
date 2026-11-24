@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, Plus, Trash2, AlertCircle, Sparkles, LogOut
 } from 'lucide-react';
@@ -9,7 +9,6 @@ import type {
   Screen,
   FormConfig,
   DynamicFeature,
-  DynamicCategory,
   QuestionOption,
   DynamicStep
 } from '../types';
@@ -18,7 +17,6 @@ import {
   STEPS as FALLBACK_STEPS,
   GOALS_OPTIONS as FALLBACK_GOALS,
   STRUCTURE_PAGES_OPTIONS as FALLBACK_PAGES,
-  FEATURES_OPTIONS as FALLBACK_FEATURES,
   REFERENCE_REASONS as FALLBACK_REASONS,
   MATERIALS_OPTIONS as FALLBACK_MATERIALS,
   INTEGRATIONS_OPTIONS as FALLBACK_INTEGRATIONS,
@@ -32,12 +30,13 @@ import CostNotepad from './preview/CostNotepad';
 import { useAuth } from '../context/AuthContext';
 import {
   saveDraftLocally, loadDraftLocally, clearDraftLocally,
-  loadDraftProjectId, saveDraftProjectId,
+  loadDraftProjectId,
   ensureProject, saveBriefingDraft, submitBriefingToSupabase
 } from '../services/briefingService';
 import { signOut } from '../services/authService';
 import { getSupabase } from '../services/supabase';
 import { getFormConfig, getFormConfigSync } from '../services/formConfigService';
+import { FEATURE_ALIASES, hasSelectedFeature, isPageOptionSelected, togglePageOption } from '../utils/featureMatchers';
 import IdentityStep from './IdentityStep';
 
 interface BriefingFlowProps {
@@ -79,10 +78,15 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
 
   const [screen, setScreen] = useState<'flow' | 'success'>('flow');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [savedFeedback, setSavedFeedback] = useState(false);
+  const [slideDir, setSlideDir] = useState<'next' | 'prev' | 'none'>('next');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [projectId, setLocalProjectId] = useState<string | null>(null);
+
+  const hasLocalDraftRef = useRef(Boolean(loadDraftLocally()));
+  const isDirtyRef = useRef(false);
+  const remoteSyncDoneRef = useRef(false);
 
   // Etapas ativas vindas do CMS
   const activeSteps = useMemo(() => {
@@ -107,18 +111,23 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
   const safeIndex = Math.min(currentStepIndex, Math.max(0, activeSteps.length - 1));
   const currentStep = activeSteps[safeIndex] || activeSteps[0];
 
-  // Auto-save local (desativado se em modo preview)
+  // Auto-save local somente quando houver alteração do usuário
   useEffect(() => {
-    if (previewModeConfig) return;
-    saveDraftLocally(data);
-    setSavedFeedback(true);
-    const t = setTimeout(() => setSavedFeedback(false), 1400);
-    return () => clearTimeout(t);
+    if (previewModeConfig || !isDirtyRef.current) return;
+    try {
+      saveDraftLocally(data);
+      setSaveState('saved');
+      const t = setTimeout(() => setSaveState('idle'), 1600);
+      return () => clearTimeout(t);
+    } catch {
+      setSaveState('error');
+    }
   }, [data, previewModeConfig]);
 
   // Garantir projeto no Supabase ao carregar (desativado se em modo preview)
   useEffect(() => {
     if (previewModeConfig) return;
+    let active = true;
     async function initProject() {
       try {
         const sb = getSupabase();
@@ -127,46 +136,68 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
           const { data: sess } = await sb.auth.getSession();
           uid = sess?.session?.user?.id;
         }
-        if (!uid) return;
+        if (!uid) {
+          remoteSyncDoneRef.current = true;
+          return;
+        }
 
         const savedProjectId = loadDraftProjectId();
         const id = await ensureProject(uid, savedProjectId, data.companyName);
+        if (!active) return;
         setLocalProjectId(id);
         setProjectId(id);
 
-        // Se o projeto já tiver respostas salvas no Supabase, carregar para edição
+        // Se o projeto já tiver respostas salvas no Supabase, carregar para edição sem sobrescrever com valores vazios
         const { data: savedBriefing } = await sb
           .from('project_briefings')
           .select('responses')
           .eq('project_id', id)
           .maybeSingle();
 
+        if (!active) return;
+
         if (savedBriefing?.responses && typeof savedBriefing.responses === 'object') {
-          setData(prev => ({
-            ...INITIAL_BRIEFING,
-            ...savedBriefing.responses,
-            ...prev
-          }));
-        } else {
-          saveBriefingDraft(id, data).catch(() => {});
+          const { _configSnapshot, ...remoteResponses } = savedBriefing.responses as Record<string, any>;
+          setData(prev => {
+            if (hasLocalDraftRef.current) {
+              const merged: Record<string, any> = { ...INITIAL_BRIEFING, ...remoteResponses };
+              for (const [k, v] of Object.entries(prev)) {
+                if (Array.isArray(v) ? v.length > 0 : Boolean(v)) {
+                  merged[k] = v;
+                }
+              }
+              return merged as BriefingData;
+            }
+            return {
+              ...INITIAL_BRIEFING,
+              ...remoteResponses
+            } as BriefingData;
+          });
         }
       } catch (e) {
         console.error('Erro ao inicializar projeto no Supabase:', e);
+      } finally {
+        if (active) remoteSyncDoneRef.current = true;
       }
     }
     initProject();
+    return () => { active = false; };
   }, [profile, setProjectId, previewModeConfig]);
 
-  // Salvar rascunho remoto com debounce (desativado em preview)
+  // Salvar rascunho remoto com debounce (desativado em preview e antes da carga inicial)
   useEffect(() => {
-    if (previewModeConfig || !projectId) return;
+    if (previewModeConfig || !projectId || !remoteSyncDoneRef.current || !isDirtyRef.current) return;
+    setSaveState('saving');
     const t = setTimeout(() => {
-      saveBriefingDraft(projectId, data).catch(() => {});
+      saveBriefingDraft(projectId, data)
+        .then(() => setSaveState('saved'))
+        .catch(() => setSaveState('error'));
     }, 1200);
     return () => clearTimeout(t);
   }, [data, projectId, previewModeConfig]);
 
   const update = useCallback((patch: Partial<BriefingData>) => {
+    isDirtyRef.current = true;
     setData(prev => ({ ...prev, ...patch }));
     setValidationError('');
   }, []);
@@ -179,6 +210,7 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
       }
     }
     setValidationError('');
+    setSlideDir('next');
     if (safeIndex < activeSteps.length - 1) {
       setCurrentStepIndex(safeIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -187,35 +219,38 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
 
   const handlePrev = () => {
     setValidationError('');
+    setSlideDir('prev');
     if (safeIndex > 0) {
       setCurrentStepIndex(safeIndex - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const toggleArrayItem = (key: keyof BriefingData, item: string) => {
-    const list = (data[key] as string[]) || [];
-    if (list.includes(item)) {
-      update({ [key]: list.filter(x => x !== item) } as Partial<BriefingData>);
-    } else {
-      update({ [key]: [...list, item] } as Partial<BriefingData>);
-    }
-  };
+  const toggleArrayItem = useCallback((key: keyof BriefingData, item: string) => {
+    isDirtyRef.current = true;
+    setValidationError('');
+    setData(prev => {
+      const list = (prev[key] as string[]) || [];
+      const next = list.includes(item)
+        ? list.filter(x => x !== item)
+        : [...list, item];
+      return { ...prev, [key]: next };
+    });
+  }, []);
 
-  // Toggle para funcionalidades dinâmicas suportando ID ou label
-  const toggleFeatureSelection = (feat: DynamicFeature) => {
-    const list = data.selectedFeatures || [];
-    const isSelected = list.includes(feat.id) || list.includes(feat.label) || (feat.name && list.includes(feat.name));
-    if (isSelected) {
-      update({
-        selectedFeatures: list.filter(x => x !== feat.id && x !== feat.label && x !== feat.name)
-      });
-    } else {
-      update({
-        selectedFeatures: [...list, feat.label || feat.id]
-      });
-    }
-  };
+  // Toggle para funcionalidades dinâmicas suportando ID ou label (com updater funcional sem stale closure)
+  const toggleFeatureSelection = useCallback((feat: DynamicFeature) => {
+    isDirtyRef.current = true;
+    setValidationError('');
+    setData(prev => {
+      const list = prev.selectedFeatures || [];
+      const isSelected = list.includes(feat.id) || list.includes(feat.label) || (feat.name && list.includes(feat.name));
+      const next = isSelected
+        ? list.filter(x => x !== feat.id && x !== feat.label && x !== feat.name)
+        : [...list, feat.label || feat.id];
+      return { ...prev, selectedFeatures: next };
+    });
+  }, []);
 
   const isFeatureSelected = (feat: DynamicFeature) => {
     const list = data.selectedFeatures || [];
@@ -227,40 +262,50 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
     const selected = data.selectedFeatures || [];
     const activeFeats = (config.features || []).filter(f => f.enabled);
 
-    const matchesConfigRule = activeFeats.some(f =>
+    if (ruleId === 'ecommerce') {
+      return hasSelectedFeature(selected, FEATURE_ALIASES.ecommerce, 'ecommerce', activeFeats)
+        || (data.mainGoals || []).includes('Vender produtos');
+    }
+    if (ruleId === 'booking') {
+      return hasSelectedFeature(selected, FEATURE_ALIASES.booking, 'booking', activeFeats)
+        || (data.mainGoals || []).includes('Receber agendamentos');
+    }
+    if (ruleId === 'login') {
+      return hasSelectedFeature(selected, FEATURE_ALIASES.login, 'login', activeFeats);
+    }
+
+    return activeFeats.some(f =>
       f.conditionalRuleId === ruleId &&
-      (selected.includes(f.id) || selected.includes(f.label) || selected.includes(f.name))
+      hasSelectedFeature(selected, [f.id, f.label, f.name].filter(Boolean) as string[])
     );
-
-    if (matchesConfigRule) return true;
-
-    // Fallback de compatibilidade com seleções legadas
-    if (ruleId === 'ecommerce') return selected.includes('Comprar produtos') || (data.mainGoals || []).includes('Vender produtos');
-    if (ruleId === 'booking') return selected.includes('Agendar horário') || (data.mainGoals || []).includes('Receber agendamentos');
-    if (ruleId === 'login') return selected.includes('Fazer login');
-    return false;
   };
 
   const addReference = () => {
+    isDirtyRef.current = true;
     const newRef: ReferenceItem = { id: crypto.randomUUID(), url: '', reasons: [], notes: '' };
-    update({ references: [...data.references, newRef] });
+    setData(prev => ({ ...prev, references: [...prev.references, newRef] }));
   };
   const updateReference = (id: string, patch: Partial<ReferenceItem>) => {
-    update({ references: data.references.map(r => r.id === id ? { ...r, ...patch } : r) });
+    isDirtyRef.current = true;
+    setData(prev => ({ ...prev, references: prev.references.map(r => r.id === id ? { ...r, ...patch } : r) }));
   };
   const removeReference = (id: string) => {
-    update({ references: data.references.filter(r => r.id !== id) });
+    isDirtyRef.current = true;
+    setData(prev => ({ ...prev, references: prev.references.filter(r => r.id !== id) }));
   };
 
   const addCompetitor = () => {
+    isDirtyRef.current = true;
     const newComp: CompetitorItem = { id: crypto.randomUUID(), nameOrUrl: '', likes: '', dislikes: '' };
-    update({ competitors: [...data.competitors, newComp] });
+    setData(prev => ({ ...prev, competitors: [...prev.competitors, newComp] }));
   };
   const updateCompetitor = (id: string, patch: Partial<CompetitorItem>) => {
-    update({ competitors: data.competitors.map(c => c.id === id ? { ...c, ...patch } : c) });
+    isDirtyRef.current = true;
+    setData(prev => ({ ...prev, competitors: prev.competitors.map(c => c.id === id ? { ...c, ...patch } : c) }));
   };
   const removeCompetitor = (id: string) => {
-    update({ competitors: data.competitors.filter(c => c.id !== id) });
+    isDirtyRef.current = true;
+    setData(prev => ({ ...prev, competitors: prev.competitors.filter(c => c.id !== id) }));
   };
 
   const handleSubmitFinal = async () => {
@@ -295,8 +340,8 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('Erro ao submeter briefing final:', err);
-      clearDraftLocally();
-      setScreen('success');
+      setSaveState('error');
+      setValidationError('Não foi possível enviar o briefing para o servidor. Suas respostas estão salvas localmente — tente enviar novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -379,6 +424,7 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
           setCurrentStepIndex(activeSteps.length - 1);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onNavigate={onNavigate}
       />
     );
   }
@@ -512,10 +558,15 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
                 <input type="text" placeholder="Ex: 25 a 45 anos / Todas as idades" value={data.ageRange} onChange={e => update({ ageRange: e.target.value })} />
               </label>
               <label className="field-label">
-                <span>Nível de poder aquisitivo (quando relevante)</span>
-                <input type="text" placeholder="Ex: Médio / Alto padrão / Acessível" value={data.purchasingPower} onChange={e => update({ purchasingPower: e.target.value })} />
+                <span>Região / Localização desse público</span>
+                <input type="text" placeholder="Ex: Capitais do Sudeste / Todo o Brasil / Global" value={data.audienceLocation} onChange={e => update({ audienceLocation: e.target.value })} />
               </label>
             </div>
+
+            <label className="field-label">
+              <span>Nível de poder aquisitivo (quando relevante)</span>
+              <input type="text" placeholder="Ex: Médio / Alto padrão / Acessível" value={data.purchasingPower} onChange={e => update({ purchasingPower: e.target.value })} />
+            </label>
 
             <label className="field-label">
               <span>Características e hábitos importantes desse público</span>
@@ -540,13 +591,14 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
 
             <div className="pills-grid-large">
               {dynamicPageOptions.map(page => {
-                const selected = data.selectedPages.includes(page.label || page.id);
+                const selected = isPageOptionSelected(data.selectedPages, page.id, page.label);
                 return (
                   <button
                     type="button"
                     key={page.id}
+                    aria-pressed={selected}
                     className={'pill-toggle-btn ' + (selected ? 'is-active' : '')}
-                    onClick={() => toggleArrayItem('selectedPages', page.label || page.id)}
+                    onClick={() => update({ selectedPages: togglePageOption(data.selectedPages, page.id, page.label) })}
                   >
                     {selected && <Check size={14} />}
                     <span>{page.label || page.id}</span>
@@ -702,6 +754,7 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
             update={update}
             toggleArrayItem={toggleArrayItem}
             stepTitle={currentStep.title}
+            config={config}
           />
         );
 
@@ -924,9 +977,16 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
         return (
           <BriefingReview
             data={data}
-            onGoToStep={idx => {
-              setCurrentStepIndex(idx);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+            activeStepIds={activeSteps.map(s => s.id)}
+            eyebrow={currentStep.eyebrow || 'REVISÃO GERAL'}
+            submitLabel={config.uiSettings?.finishButtonLabel}
+            onGoToStep={stepId => {
+              const targetIdx = activeSteps.findIndex(s => s.id === stepId);
+              if (targetIdx !== -1) {
+                setSlideDir('prev');
+                setCurrentStepIndex(targetIdx);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
             }}
             onSubmit={handleSubmitFinal}
             submitting={submitting}
@@ -958,10 +1018,23 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
         </div>
 
         <div className="flow-topbar-right">
-          <span className="auto-save-indicator">
-            {previewModeConfig
-              ? 'Modo de visualização ativa'
-              : (savedFeedback ? 'Salvo automaticamente' : (ui?.autoSaveText || 'Auto-salvamento ativo'))}
+          <span
+            className={`auto-save-indicator ${saveState === 'saved' ? 'is-saved' : saveState === 'saving' ? 'is-saving' : saveState === 'error' ? 'is-error' : 'is-idle'}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="save-indicator-dot" />
+            <span>
+              {previewModeConfig
+                ? 'Modo de visualização ativa'
+                : saveState === 'saving'
+                  ? 'Salvando…'
+                  : saveState === 'saved'
+                    ? 'Salvo automaticamente'
+                    : saveState === 'error'
+                      ? 'Falha ao salvar remoto'
+                      : (ui?.autoSaveText || 'Auto-salvamento ativo')}
+            </span>
           </span>
           {!previewModeConfig && (
             <button
@@ -989,7 +1062,11 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
               key={s.id}
               type="button"
               className={'step-btn ' + (isCurrent ? 'is-current' : isDone ? 'is-done' : '')}
-              onClick={() => { setCurrentStepIndex(i); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onClick={() => {
+                setSlideDir(i >= safeIndex ? 'next' : 'prev');
+                setCurrentStepIndex(i);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             >
               <span className="step-number">{isDone ? <Check size={12} /> : String(i + 1).padStart(2, '0')}</span>
               <span className="step-text">{s.label}</span>
@@ -1001,7 +1078,9 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
       <div className={`flow-workspace ${currentStep?.id !== 'review' ? 'has-preview-sidebar' : ''}`}>
         <div className="flow-form-column">
           <div className="flow-container">
-            {renderStepContent()}
+            <div className={`step-content-animator slide-${slideDir}`} key={currentStep?.id || safeIndex}>
+              {renderStepContent()}
+            </div>
 
             {validationError && (
               <div className="validation-alert" role="alert">
@@ -1035,8 +1114,8 @@ export default function BriefingFlow({ onNavigate, setProjectId, previewModeConf
         {currentStep?.id !== 'review' && (
           <aside className="flow-preview-column">
             <div className="preview-sticky-container">
-              <ComputerPreview data={data} />
-              <CostNotepad data={data} />
+              <ComputerPreview data={data} config={config} />
+              <CostNotepad data={data} config={config} />
             </div>
           </aside>
         )}

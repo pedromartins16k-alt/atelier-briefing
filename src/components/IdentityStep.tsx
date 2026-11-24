@@ -5,31 +5,33 @@
  */
 import React, { useState } from 'react';
 import { Check, Palette, Sparkles } from 'lucide-react';
-import type { BriefingData, ColorPaletteColors, ColorPalette } from '../types';
+import type { BriefingData, ColorPaletteColors, ColorPalette, FormConfig } from '../types';
 import { BRAND_PERCEPTIONS } from '../data/briefingConfig';
-import { getFormConfigSync } from '../services/formConfigService';
+import { getFormConfigSync, DEFAULT_PALETTES } from '../services/formConfigService';
 
 interface IdentityStepProps {
   data: BriefingData;
   update: (patch: Partial<BriefingData>) => void;
   toggleArrayItem: (key: keyof BriefingData, item: string) => void;
   stepTitle: string;
+  config?: FormConfig;
 }
 
-export default function IdentityStep({ data, update, toggleArrayItem, stepTitle }: IdentityStepProps) {
+export default function IdentityStep({ data, update, toggleArrayItem, stepTitle, config }: IdentityStepProps) {
   const [showCustomPicker, setShowCustomPicker] = useState(!!data.customPalette);
 
-  const formConfig = getFormConfigSync();
+  const formConfig = config || getFormConfigSync();
   const enabledPalettes = formConfig.palettes.filter((p: ColorPalette) => p.enabled);
 
-  const dynamicPerceptions = (formConfig.steps?.find(s => s.id === 'identity')?.questions?.find(q => q.id === 'brandPerceptions')?.options?.filter(o => o.enabled)
+  const identityStepConfig = formConfig.steps?.find(s => s.id === 'identity');
+  const dynamicPerceptions = (identityStepConfig?.questions?.find(q => q.id === 'brandPerceptions')?.options?.filter(o => o.enabled)
     || BRAND_PERCEPTIONS.map(b => ({ id: b.id, label: b.id, description: b.desc }))) as { id: string; label?: string; description?: string; desc?: string }[];
 
   return (
     <div className="step-body">
-      <div className="eyebrow">06 / ATMOSFERA VISUAL</div>
+      <div className="eyebrow">{identityStepConfig?.eyebrow || '06 / ATMOSFERA VISUAL'}</div>
       <h1>{stepTitle}</h1>
-      <p>Como você gostaria que sua marca fosse percebida visualmente?</p>
+      <p>{identityStepConfig?.subtitle || 'Como você gostaria que sua marca fosse percebida visualmente?'}</p>
 
       <div className="perceptions-grid">
         {dynamicPerceptions.map(item => {
@@ -125,8 +127,8 @@ export default function IdentityStep({ data, update, toggleArrayItem, stepTitle 
                   { key: 'text', label: 'Cor do Texto' },
                 ] as { key: keyof ColorPaletteColors; label: string }[]
               ).map(({ key, label }) => {
-                const defaultPalette = enabledPalettes[0];
-                const currentVal = data.customPalette?.[key] || defaultPalette?.colors[key] || '#6B5E4E';
+                const defaultPalette = enabledPalettes[0] || DEFAULT_PALETTES[0];
+                const currentVal = data.customPalette?.[key] || defaultPalette.colors[key] || '#171918';
                 return (
                   <label key={key} className="color-picker-item">
                     <input

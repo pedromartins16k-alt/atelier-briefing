@@ -26,17 +26,17 @@ const SUPABASE_CONFIG_KEY = 'global';
 export const DEFAULT_PALETTES: ColorPalette[] = [
   {
     id: 'atelier',
-    name: 'Atelier',
-    emoji: '🫙',
+    name: 'Atelier (Original)',
+    emoji: '🌿',
     enabled: true,
     order: 1,
     colors: {
-      primary: '#6B5E4E',
-      secondary: '#9B8E7E',
-      accent: '#C9A96E',
-      background: '#FAFAF8',
-      surface: '#F4F0EB',
-      text: '#2C2520'
+      primary: '#171918',
+      secondary: '#85877F',
+      accent: '#B8CA46',
+      background: '#F5F4EF',
+      surface: '#E7E5DE',
+      text: '#171918'
     }
   },
   {

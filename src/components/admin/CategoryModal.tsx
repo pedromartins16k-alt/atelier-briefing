@@ -48,6 +48,13 @@ export default function CategoryModal({
     setError('');
   }, [category, existingCategories.length, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleNameChange = (val: string) => {
@@ -119,8 +126,10 @@ export default function CategoryModal({
           )}
 
           <div className="config-form-group">
-            <label>Nome da Categoria *</label>
+            <label htmlFor="cat-name">Nome da Categoria *</label>
             <input
+              id="cat-name"
+              name="name"
               type="text"
               placeholder="Ex: Comunicação, Marketing, E-commerce..."
               value={name}
@@ -132,8 +141,10 @@ export default function CategoryModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Identificador interno (slug) *</label>
+              <label htmlFor="cat-slug">Identificador interno (slug) *</label>
               <input
+                id="cat-slug"
+                name="slug"
                 type="text"
                 placeholder="ex: comunicacao"
                 value={slug}
@@ -147,8 +158,10 @@ export default function CategoryModal({
             </div>
 
             <div className="config-form-group">
-              <label>Ordem de exibição</label>
+              <label htmlFor="cat-order">Ordem de exibição</label>
               <input
+                id="cat-order"
+                name="order"
                 type="number"
                 min={1}
                 value={order}
@@ -159,9 +172,11 @@ export default function CategoryModal({
           </div>
 
           <div className="config-form-group">
-            <label>Ícone ou Emoji</label>
+            <label htmlFor="cat-icon">Ícone ou Emoji</label>
             <div className="config-emoji-picker-row">
               <input
+                id="cat-icon"
+                name="icon"
                 type="text"
                 value={icon}
                 onChange={e => setIcon(e.target.value)}
@@ -184,8 +199,10 @@ export default function CategoryModal({
           </div>
 
           <div className="config-form-group">
-            <label>Descrição (opcional)</label>
+            <label htmlFor="cat-description">Descrição (opcional)</label>
             <textarea
+              id="cat-description"
+              name="description"
               rows={2}
               placeholder="Breve explicação sobre os recursos desta categoria..."
               value={description}

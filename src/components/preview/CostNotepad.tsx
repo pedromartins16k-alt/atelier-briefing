@@ -6,6 +6,7 @@ import { getFormConfig, getFormConfigSync } from '../../services/formConfigServi
 
 interface CostNotepadProps {
   data: BriefingData;
+  config?: FormConfig;
 }
 
 interface CostItem {
@@ -36,11 +37,12 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
     value: bp.base
   });
 
-  // 2. Páginas adicionais (acima de 2 padrão)
+  // 2. Páginas adicionais (acima de 2 padrão, deduplicadas)
   const pagesList = config.pageOptions || [];
   const pagesIncluded = pagesList.filter(p => p.price === 0 && p.enabled).length;
   const includedFree = Math.max(pagesIncluded, 2);
-  const extraPages = Math.max(0, (data.selectedPages?.length || 0) - includedFree);
+  const uniqueSelectedPagesCount = new Set((data.selectedPages || []).map(p => p.toLowerCase().trim())).size;
+  const extraPages = Math.max(0, uniqueSelectedPagesCount - includedFree);
   if (extraPages > 0) {
     list.push({
       id: 'pages',
@@ -66,8 +68,12 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
       continue;
     }
 
-    // Match por id ou label
-    const isSelected = selectedFeatures.includes(feat.id) || selectedFeatures.includes(feat.label) || ((feat as any).name && selectedFeatures.includes((feat as any).name));
+    // Match por id, label ou name (case-insensitive)
+    const lowerSelected = selectedFeatures.map(s => s.toLowerCase().trim());
+    const isSelected =
+      lowerSelected.includes(feat.id.toLowerCase().trim()) ||
+      (feat.label && lowerSelected.includes(feat.label.toLowerCase().trim())) ||
+      ((feat as any).name && lowerSelected.includes(String((feat as any).name).toLowerCase().trim()));
     if (!isSelected) continue;
     if (!feat.price || feat.price === 0) continue;
 
@@ -127,13 +133,16 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
   return list;
 }
 
-export default function CostNotepad({ data }: CostNotepadProps) {
-  const [config, setConfig] = useState<FormConfig>(getFormConfigSync());
+export default function CostNotepad({ data, config: propConfig }: CostNotepadProps) {
+  const [fetchedConfig, setFetchedConfig] = useState<FormConfig>(getFormConfigSync());
 
-  // Carregar config do Supabase/localStorage de forma assíncrona
+  // Carregar config do Supabase/localStorage de forma assíncrona caso não recebido via prop
   useEffect(() => {
-    getFormConfig().then(setConfig).catch(() => {});
-  }, []);
+    if (propConfig) return;
+    getFormConfig().then(setFetchedConfig).catch(() => {});
+  }, [propConfig]);
+
+  const config = propConfig || fetchedConfig;
 
   const { items, total } = useMemo(() => {
     const list = calculateItems(data, config);

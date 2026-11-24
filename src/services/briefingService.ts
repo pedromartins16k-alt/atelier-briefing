@@ -86,7 +86,27 @@ export async function ensureProject(clientId: string, existingProjectId?: string
     return clientExistingProject.id;
   }
 
-  // 3. Somente se o cliente NÃO tiver nenhum projeto anterior, cria o primeiro
+  // 3. Garantir que o perfil do cliente existe em user_profiles antes de criar o projeto (evita erro FK)
+  try {
+    const { data: userProfile } = await sb
+      .from('user_profiles')
+      .select('id')
+      .eq('id', clientId)
+      .maybeSingle();
+
+    if (!userProfile) {
+      const { data: authUser } = await sb.auth.getUser();
+      const userName = authUser?.user?.user_metadata?.name || authUser?.user?.email?.split('@')[0] || 'Cliente';
+      await sb.from('user_profiles').upsert({
+        id: clientId,
+        name: userName,
+        role: 'client',
+        company: projectName?.trim() || undefined
+      });
+    }
+  } catch {}
+
+  // 4. Somente se o cliente NÃO tiver nenhum projeto anterior, cria o primeiro
   const { data, error } = await sb
     .from('projects')
     .insert({
@@ -173,14 +193,18 @@ export async function submitBriefingToSupabase(projectId: string, data: Briefing
     if (error) throw error;
   }
 
-  // Registrar histórico via RPC (se disponível no banco)
+  // Registrar histórico via insert direto na tabela project_history
   try {
-    await sb.rpc('add_project_history', {
-      p_project_id: projectId,
-      p_event_type: 'briefing_submitted',
-      p_description: 'Briefing enviado pelo cliente.'
-    });
-  } catch {}
+    await sb
+      .from('project_history')
+      .insert({
+        project_id: projectId,
+        event_type: 'briefing_submitted',
+        description: 'Briefing enviado pelo cliente.'
+      });
+  } catch {
+    // Falha silenciosa — não bloqueia o fluxo de envio
+  }
 
   // Atualizar nome e status do projeto
   const companyName = data.companyName?.trim();

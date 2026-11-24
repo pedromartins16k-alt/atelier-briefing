@@ -88,7 +88,7 @@ export default function ClientHome({ onNavigate }: ClientHomeProps) {
                   </p>
                 </div>
                 <button
-                  className="primary action-btn"
+                  className="primary action-btn client-primary-btn"
                   onClick={() => onNavigate('flow')}
                 >
                   Começar briefing <ArrowRight size={16} />
@@ -108,7 +108,7 @@ export default function ClientHome({ onNavigate }: ClientHomeProps) {
                   </p>
                 </div>
                 <button
-                  className="primary action-btn"
+                  className="primary action-btn client-primary-btn"
                   onClick={() => onNavigate('flow')}
                 >
                   Continuar briefing <ArrowRight size={16} />
@@ -129,16 +129,15 @@ export default function ClientHome({ onNavigate }: ClientHomeProps) {
                     <strong> {PROJECT_STATUS_LABELS[project.status]}</strong>
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div className="client-card-btn-group">
                   <button
-                    className="primary action-btn"
+                    className="primary action-btn client-primary-btn"
                     onClick={() => onNavigate('success')}
                   >
                     Ver meu briefing <ArrowRight size={16} />
                   </button>
                   <button
-                    className="action-btn"
-                    style={{ background: '#f4efe9', border: '1px solid #dcd7cf', color: '#444' }}
+                    className="client-secondary-btn"
                     onClick={() => onNavigate('flow')}
                   >
                     Editar respostas

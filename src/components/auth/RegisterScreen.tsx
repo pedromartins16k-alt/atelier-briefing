@@ -103,6 +103,8 @@ export default function RegisterScreen({ onNavigate }: RegisterScreenProps) {
           <label className="auth-field">
             <span>Seu nome completo</span>
             <input
+              id="register-name"
+              name="name"
               type="text"
               autoComplete="name"
               placeholder="Ex: Pedro Martins"
@@ -115,6 +117,8 @@ export default function RegisterScreen({ onNavigate }: RegisterScreenProps) {
           <label className="auth-field">
             <span>E-mail</span>
             <input
+              id="register-email"
+              name="email"
               type="email"
               autoComplete="email"
               placeholder="seuemail@empresa.com"
@@ -127,6 +131,8 @@ export default function RegisterScreen({ onNavigate }: RegisterScreenProps) {
           <label className="auth-field">
             <span>Senha</span>
             <input
+              id="register-password"
+              name="password"
               type="password"
               autoComplete="new-password"
               placeholder="Mínimo 8 caracteres"
@@ -139,6 +145,8 @@ export default function RegisterScreen({ onNavigate }: RegisterScreenProps) {
           <label className="auth-field">
             <span>Confirmar senha</span>
             <input
+              id="register-confirm"
+              name="confirm"
               type="password"
               autoComplete="new-password"
               placeholder="Repita a senha"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import type { Screen, BriefingData } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Home from './components/Home';
@@ -8,13 +8,15 @@ import ForgotScreen from './components/auth/ForgotScreen';
 import ClientHome from './components/client/ClientHome';
 import BriefingFlow from './components/BriefingFlow';
 import ProfessionalResult from './components/ProfessionalResult';
-import AdminLayout from './components/admin/AdminLayout';
-import AdminDashboard from './components/admin/AdminDashboard';
-import ClientsList from './components/admin/ClientsList';
-import ClientProfile from './components/admin/ClientProfile';
-import ProjectsList from './components/admin/ProjectsList';
-import ProjectDetail from './components/admin/ProjectDetail';
-import FormConfigurator from './components/admin/FormConfigurator';
+
+// Code-splitting seguro das rotas administrativas (isoladas do bundle do cliente)
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const ClientsList = lazy(() => import('./components/admin/ClientsList'));
+const ClientProfile = lazy(() => import('./components/admin/ClientProfile'));
+const ProjectsList = lazy(() => import('./components/admin/ProjectsList'));
+const ProjectDetail = lazy(() => import('./components/admin/ProjectDetail'));
+const FormConfigurator = lazy(() => import('./components/admin/FormConfigurator'));
 import { getClientBriefing } from './services/briefingService';
 import { INITIAL_BRIEFING } from './data/briefingConfig';
 
@@ -77,21 +79,33 @@ function MainApp() {
   useEffect(() => { selectedClientIdRef.current = selectedClientId; }, [selectedClientId]);
   useEffect(() => { selectedProjectIdRef.current = selectedProjectId; }, [selectedProjectId]);
 
-  // Navegação consistente sincronizando URL.
-  // opts permite sobrescrever clientId/projectId sem depender do estado potencialmente stale.
+  // Navegação consistente sincronizando URL com suporte a View Transitions API
   const navigate = useCallback((target: Screen, opts?: NavigateOpts, updateHistory = true) => {
     const cid = opts?.clientId ?? selectedClientIdRef.current;
     const pid = opts?.projectId ?? selectedProjectIdRef.current;
     if (opts?.clientId) setSelectedClientId(opts.clientId);
     if (opts?.projectId) setSelectedProjectId(opts.projectId);
-    setScreen(target);
-    if (updateHistory) {
-      const path = screenToPath(target, cid, pid);
-      if (window.location.pathname !== path) {
-        window.history.pushState(null, '', path);
+
+    const performUpdate = () => {
+      setScreen(target);
+      if (updateHistory) {
+        const path = screenToPath(target, cid, pid);
+        if (window.location.pathname !== path) {
+          window.history.pushState(null, '', path);
+        }
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    if (
+      typeof document !== 'undefined' &&
+      'startViewTransition' in document &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      (document as any).startViewTransition(performUpdate);
+    } else {
+      performUpdate();
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
 
@@ -149,16 +163,18 @@ function MainApp() {
     }
   }, [user, profile, loading, screen, navigate]);
 
-  // Carregar dados de briefing do cliente quando em modo 'success' / visualização
+  // Carregar dados atualizados de briefing do cliente sempre que entrar em modo 'success'
   useEffect(() => {
-    if (screen === 'success' && profile && !clientBriefingData) {
+    if (screen === 'success' && profile) {
+      let active = true;
       getClientBriefing(profile.id).then(res => {
-        if (res?.briefing?.responses) {
+        if (active && res?.briefing?.responses) {
           setClientBriefingData(res.briefing.responses);
         }
       }).catch(() => {});
+      return () => { active = false; };
     }
-  }, [screen, profile, clientBriefingData]);
+  }, [screen, profile]);
 
   if (loading) {
     return (
@@ -169,104 +185,119 @@ function MainApp() {
     );
   }
 
-  // --- Rotas Públicas & Auth ---
-  if (screen === 'home') {
+  const renderScreen = () => {
+    // --- Rotas Públicas & Auth ---
+    if (screen === 'home') {
+      return (
+        <Home
+          onStart={() => {
+            if (!user) {
+              navigate('login');
+            } else if (profile?.role === 'admin') {
+              navigate('admin-dashboard');
+            } else {
+              navigate('client-home');
+            }
+          }}
+          onNavigate={navigate}
+        />
+      );
+    }
+
+    if (screen === 'login') {
+      return <LoginScreen onNavigate={navigate} />;
+    }
+
+    if (screen === 'register') {
+      return <RegisterScreen onNavigate={navigate} />;
+    }
+
+    if (screen === 'forgot') {
+      return <ForgotScreen onNavigate={navigate} />;
+    }
+
+    // --- Rotas do Cliente ---
+    if (screen === 'client-home') {
+      return <ClientHome onNavigate={navigate} />;
+    }
+
+    if (screen === 'flow') {
+      return (
+        <BriefingFlow
+          onNavigate={navigate}
+          setProjectId={setSelectedProjectId}
+        />
+      );
+    }
+
+    if (screen === 'success') {
+      return (
+        <ProfessionalResult
+          data={clientBriefingData || INITIAL_BRIEFING}
+          onBackToEdit={() => navigate('flow')}
+          onNavigate={navigate}
+        />
+      );
+    }
+
+    // --- Rotas do Administrador ---
+    if (profile?.role === 'admin' && screen.startsWith('admin-')) {
+      return (
+        <AdminLayout screen={screen} onNavigate={navigate}>
+          {screen === 'admin-dashboard' && (
+            <AdminDashboard
+              onNavigate={navigate}
+            />
+          )}
+          {screen === 'admin-clients' && (
+            <ClientsList
+              onNavigate={navigate}
+            />
+          )}
+          {screen === 'admin-client' && (
+            <ClientProfile
+              clientId={selectedClientId}
+              onNavigate={navigate}
+            />
+          )}
+          {screen === 'admin-projects' && (
+            <ProjectsList
+              onNavigate={navigate}
+            />
+          )}
+          {screen === 'admin-project' && (
+            <ProjectDetail
+              projectId={selectedProjectId}
+              onNavigate={navigate}
+            />
+          )}
+          {screen === 'admin-config' && (
+            <FormConfigurator />
+          )}
+        </AdminLayout>
+      );
+    }
+
+    // Fallback seguro
     return (
       <Home
-        onStart={() => {
-          if (!user) {
-            navigate('login');
-          } else if (profile?.role === 'admin') {
-            navigate('admin-dashboard');
-          } else {
-            navigate('client-home');
-          }
-        }}
+        onStart={() => navigate('login')}
         onNavigate={navigate}
       />
     );
-  }
+  };
 
-  if (screen === 'login') {
-    return <LoginScreen onNavigate={navigate} />;
-  }
-
-  if (screen === 'register') {
-    return <RegisterScreen onNavigate={navigate} />;
-  }
-
-  if (screen === 'forgot') {
-    return <ForgotScreen onNavigate={navigate} />;
-  }
-
-  // --- Rotas do Cliente ---
-  if (screen === 'client-home') {
-    return <ClientHome onNavigate={navigate} />;
-  }
-
-  if (screen === 'flow') {
-    return (
-      <BriefingFlow
-        onNavigate={navigate}
-        setProjectId={id => setSelectedProjectId(id)}
-      />
-    );
-  }
-
-  if (screen === 'success') {
-    return (
-      <ProfessionalResult
-        data={clientBriefingData || INITIAL_BRIEFING}
-        onBackToEdit={() => navigate('flow')}
-        onNavigate={navigate}
-      />
-    );
-  }
-
-  // --- Rotas do Administrador ---
-  if (profile?.role === 'admin' && screen.startsWith('admin-')) {
-    return (
-      <AdminLayout screen={screen} onNavigate={navigate}>
-        {screen === 'admin-dashboard' && (
-          <AdminDashboard
-            onNavigate={navigate}
-          />
-        )}
-        {screen === 'admin-clients' && (
-          <ClientsList
-            onNavigate={navigate}
-          />
-        )}
-        {screen === 'admin-client' && (
-          <ClientProfile
-            clientId={selectedClientId}
-            onNavigate={navigate}
-          />
-        )}
-        {screen === 'admin-projects' && (
-          <ProjectsList
-            onNavigate={navigate}
-          />
-        )}
-        {screen === 'admin-project' && (
-          <ProjectDetail
-            projectId={selectedProjectId}
-            onNavigate={navigate}
-          />
-        )}
-        {screen === 'admin-config' && (
-          <FormConfigurator />
-        )}
-      </AdminLayout>
-    );
-  }
-
-  // Fallback seguro
   return (
-    <Home
-      onStart={() => navigate('login')}
-      onNavigate={navigate}
-    />
+    <Suspense fallback={
+      <div className="global-loading-screen">
+        <div className="loading-spinner" />
+        <span>Carregando Atelier…</span>
+      </div>
+    }>
+      <div className="page-transition-wrap" key={screen}>
+        {renderScreen()}
+      </div>
+    </Suspense>
   );
 }
 

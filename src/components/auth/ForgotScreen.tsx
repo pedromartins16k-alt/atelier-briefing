@@ -75,6 +75,8 @@ export default function ForgotScreen({ onNavigate }: ForgotScreenProps) {
           <label className="auth-field">
             <span>E-mail cadastrado</span>
             <input
+              id="forgot-email"
+              name="email"
               type="email"
               autoComplete="email"
               placeholder="seuemail@empresa.com"

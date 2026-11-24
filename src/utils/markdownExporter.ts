@@ -1,5 +1,6 @@
 import type { BriefingData } from '../types';
 import { analyzeBriefing } from './briefingIntelligence';
+import { FEATURE_ALIASES, hasSelectedFeature } from './featureMatchers';
 
 export function generateBriefingMarkdown(data: BriefingData): string {
 
@@ -67,7 +68,7 @@ export function generateBriefingMarkdown(data: BriefingData): string {
   if (data.customFeature) md += '- **Funcionalidade Customizada:** ' + data.customFeature + '\n';
 
   const cond = data.featureConditionals;
-  if (data.selectedFeatures.includes('Comprar produtos')) {
+  if (hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.ecommerce)) {
     md += '\n### Detalhes de Venda / E-commerce:\n';
     md += '- Quantidade aproximada de produtos: ' + (cond.ecommerceProductsCount || 'Não informado') + '\n';
     md += '- Já possui gateway de pagamento: ' + (cond.ecommerceHasPaymentGateway || 'Não') + '\n';
@@ -77,7 +78,7 @@ export function generateBriefingMarkdown(data: BriefingData): string {
     md += '- Já vende online atualmente: ' + (cond.ecommerceCurrentlySellsOnline || 'Não') + '\n';
   }
 
-  if (data.selectedFeatures.includes('Agendar horário')) {
+  if (hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.booking)) {
     md += '\n### Detalhes de Agendamento:\n';
     md += '- Tipo de serviço a ser agendado: ' + (cond.bookingServiceType || 'Não informado') + '\n';
     md += '- Profissionais envolvidos: ' + (cond.bookingProfessionalsCount || 'Não informado') + '\n';
@@ -86,7 +87,7 @@ export function generateBriefingMarkdown(data: BriefingData): string {
     if (cond.bookingCurrentTool) md += '- Ferramenta em uso: ' + cond.bookingCurrentTool + '\n';
   }
 
-  if (data.selectedFeatures.includes('Fazer login')) {
+  if (hasSelectedFeature(data.selectedFeatures, FEATURE_ALIASES.login)) {
     md += '\n### Detalhes da Área de Membros/Login:\n';
     md += '- Finalidade do acesso restrito: ' + (cond.loginPurpose || 'Não informado') + '\n';
   }
@@ -94,6 +95,11 @@ export function generateBriefingMarkdown(data: BriefingData): string {
 
   md += '## 8. Identidade Visual e Estilo\n';
   md += '- **Percepção Desejada:** ' + (data.brandPerceptions.join(', ') || 'Não definido') + '\n';
+  if (data.selectedPaletteId) md += '- **Paleta Selecionada:** ' + data.selectedPaletteId + '\n';
+  if (data.customPalette) md += '- **Paleta Customizada:** Primária ' + data.customPalette.primary + ' / Destaque ' + data.customPalette.accent + '\n';
+  if (data.visualStyle) md += '- **Estilo de Layout:** ' + data.visualStyle + '\n';
+  if (data.typographyStyle) md += '- **Tipografia:** ' + data.typographyStyle + '\n';
+  if (data.borderRadiusStyle) md += '- **Estilo de Bordas:** ' + data.borderRadiusStyle + '\n';
   md += '- **Cores da Marca:** ' + (data.brandColors || 'A definir / Sem preferência estrita') + '\n';
   if (data.colorsToAvoid) md += '- **Cores a Evitar:** ' + data.colorsToAvoid + '\n';
   md += '- **Status da Identidade Visual:** ' + (data.identityStatus === 'complete' ? 'Sim, completa (manual + vetor)' : data.identityStatus === 'logo_only' ? 'Apenas logo' : data.identityStatus === 'some_materials' ? 'Alguns materiais pontuais' : 'Ainda não possui identidade visual') + '\n\n';

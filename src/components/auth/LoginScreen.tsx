@@ -64,6 +64,8 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
           <label className="auth-field">
             <span>E-mail</span>
             <input
+              id="login-email"
+              name="email"
               type="email"
               autoComplete="email"
               placeholder="seuemail@empresa.com"
@@ -76,6 +78,8 @@ export default function LoginScreen({ onNavigate }: LoginScreenProps) {
           <label className="auth-field">
             <span>Senha</span>
             <input
+              id="login-password"
+              name="password"
               type="password"
               autoComplete="current-password"
               placeholder="Sua senha"

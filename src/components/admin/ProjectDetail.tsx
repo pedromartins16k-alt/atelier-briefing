@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowLeft, Copy, Download, Check, ChevronDown, ChevronUp,
-  Plus, Trash2, Clock, AlertTriangle, Info, Zap, Link
+  ArrowLeft, Copy, Download, Check,
+  Plus, Trash2, AlertTriangle, Info, Zap, Link
 } from 'lucide-react';
 import type { Screen, Project, ProjectBriefing, InternalNote, ProjectHistoryEvent, ProjectStatus, BriefingData } from '../../types';
 import type { NavigateOpts } from '../../App';
@@ -9,7 +9,7 @@ import { PROJECT_STATUS_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import {
   getProjectById, getBriefingByProject, getNotesByProject,
-  addNote, updateNote, deleteNote, getHistoryByProject,
+  addNote, deleteNote, getHistoryByProject,
   updateProjectStatus, addHistoryEvent, deleteProject
 } from '../../services/adminService';
 import { generateMarkdown } from '../../utils/markdownExporter';

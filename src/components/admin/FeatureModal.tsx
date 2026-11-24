@@ -65,6 +65,13 @@ export default function FeatureModal({
     setError('');
   }, [feature, categories, existingFeatures.length, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleNameChange = (val: string) => {
@@ -161,8 +168,10 @@ export default function FeatureModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Nome Interno *</label>
+              <label htmlFor="feat-name">Nome Interno *</label>
               <input
+                id="feat-name"
+                name="name"
                 type="text"
                 placeholder="Ex: Loja & E-commerce"
                 value={name}
@@ -173,8 +182,10 @@ export default function FeatureModal({
             </div>
 
             <div className="config-form-group">
-              <label>Label exibida ao cliente *</label>
+              <label htmlFor="feat-label">Label exibida ao cliente *</label>
               <input
+                id="feat-label"
+                name="label"
                 type="text"
                 placeholder="Ex: Loja & E-commerce"
                 value={label}
@@ -186,8 +197,10 @@ export default function FeatureModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Categoria *</label>
+              <label htmlFor="feat-category">Categoria *</label>
               <select
+                id="feat-category"
+                name="categoryId"
                 value={categoryId}
                 onChange={e => setCategoryId(e.target.value)}
                 className="config-select"
@@ -201,8 +214,10 @@ export default function FeatureModal({
             </div>
 
             <div className="config-form-group">
-              <label>Identificador Interno (slug) *</label>
+              <label htmlFor="feat-slug">Identificador Interno (slug) *</label>
               <input
+                id="feat-slug"
+                name="slug"
                 type="text"
                 placeholder="ex: ecommerce"
                 value={slug}
@@ -215,8 +230,10 @@ export default function FeatureModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Preço Adicional (R$)</label>
+              <label htmlFor="feat-price">Preço Adicional (R$)</label>
               <input
+                id="feat-price"
+                name="price"
                 type="number"
                 min={0}
                 step={50}
@@ -228,8 +245,10 @@ export default function FeatureModal({
             </div>
 
             <div className="config-form-group">
-              <label>Label de Preço</label>
+              <label htmlFor="feat-price-label">Label de Preço</label>
               <input
+                id="feat-price-label"
+                name="priceLabel"
                 type="text"
                 placeholder="ex: Incluso, + R$ 1.800"
                 value={priceLabel}
@@ -241,9 +260,11 @@ export default function FeatureModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Ícone ou Emoji</label>
+              <label htmlFor="feat-icon">Ícone ou Emoji</label>
               <div className="config-emoji-picker-row">
                 <input
+                  id="feat-icon"
+                  name="icon"
                   type="text"
                   value={icon}
                   onChange={e => setIcon(e.target.value)}
@@ -266,8 +287,10 @@ export default function FeatureModal({
             </div>
 
             <div className="config-form-group">
-              <label>Ordem de Exibição</label>
+              <label htmlFor="feat-order">Ordem de Exibição</label>
               <input
+                id="feat-order"
+                name="order"
                 type="number"
                 min={1}
                 value={order}
@@ -278,8 +301,10 @@ export default function FeatureModal({
           </div>
 
           <div className="config-form-group">
-            <label>Regra / Bloco Condicional Vinculado</label>
+            <label htmlFor="feat-conditional">Regra / Bloco Condicional Vinculado</label>
             <select
+              id="feat-conditional"
+              name="conditionalRuleId"
               value={conditionalRuleId}
               onChange={e => setConditionalRuleId(e.target.value)}
               className="config-select"
@@ -295,8 +320,10 @@ export default function FeatureModal({
           </div>
 
           <div className="config-form-group">
-            <label>Descrição detalhada (opcional)</label>
+            <label htmlFor="feat-description">Descrição detalhada (opcional)</label>
             <textarea
+              id="feat-description"
+              name="description"
               rows={2}
               placeholder="Explique o que este módulo contempla..."
               value={description}

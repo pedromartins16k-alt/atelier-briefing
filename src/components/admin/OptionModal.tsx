@@ -48,6 +48,13 @@ export default function OptionModal({
     setError('');
   }, [option, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handlePriceChange = (val: number) => {
@@ -100,8 +107,10 @@ export default function OptionModal({
           )}
 
           <div className="config-form-group">
-            <label>Rótulo da Opção *</label>
+            <label htmlFor="opt-label">Rótulo da Opção *</label>
             <input
+              id="opt-label"
+              name="label"
               type="text"
               placeholder="Ex: Landing Page, Consultoria, etc..."
               value={label}
@@ -112,8 +121,10 @@ export default function OptionModal({
           </div>
 
           <div className="config-form-group">
-            <label>Descrição ou Subtítulo (opcional)</label>
+            <label htmlFor="opt-description">Descrição ou Subtítulo (opcional)</label>
             <input
+              id="opt-description"
+              name="description"
               type="text"
               placeholder="Ex: Foco em conversão e captação rápida..."
               value={description}
@@ -125,8 +136,10 @@ export default function OptionModal({
           {hasPrice && (
             <div className="config-form-row two-cols">
               <div className="config-form-group">
-                <label>Preço Adicional (R$)</label>
+                <label htmlFor="opt-price">Preço Adicional (R$)</label>
                 <input
+                  id="opt-price"
+                  name="price"
                   type="number"
                   min={0}
                   step={50}
@@ -136,8 +149,10 @@ export default function OptionModal({
                 />
               </div>
               <div className="config-form-group">
-                <label>Label de Preço</label>
+                <label htmlFor="opt-price-label">Label de Preço</label>
                 <input
+                  id="opt-price-label"
+                  name="priceLabel"
                   type="text"
                   placeholder="ex: + R$ 250, Incluso"
                   value={priceLabel}
@@ -150,8 +165,10 @@ export default function OptionModal({
 
           <div className="config-form-row two-cols">
             <div className="config-form-group">
-              <label>Ordem</label>
+              <label htmlFor="opt-order">Ordem</label>
               <input
+                id="opt-order"
+                name="order"
                 type="number"
                 min={1}
                 value={order}
