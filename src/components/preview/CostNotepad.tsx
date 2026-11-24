@@ -124,7 +124,7 @@ function calculateItems(data: BriefingData, config: FormConfig): CostItem[] {
   if (integrationsCount > 0 && bp.integrationPriceEach > 0) {
     list.push({
       id: 'integrations',
-      name: `${integrationsCount} integração${integrationsCount > 1 ? 'ões' : ''} de software`,
+      name: `${integrationsCount} integraç${integrationsCount > 1 ? 'ões' : 'ão'} de software`,
       category: 'Conexões',
       value: integrationsCount * bp.integrationPriceEach
     });
